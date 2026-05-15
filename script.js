@@ -173,7 +173,6 @@ function register() {
     const pass = document.getElementById('auth-password').value;
     
     if (!email || !pass) return alert("Введите Email и пароль!");
-    if (users[email]) return alert("Эта почта уже зарегистрирована.");
     
     users[email] = { password: pass, name: "Офицер (" + email.split('@')[0] + ")", rank: "USER", division: "Unassigned", unit: "NONE", status: "OFF DUTY" };
     save();
