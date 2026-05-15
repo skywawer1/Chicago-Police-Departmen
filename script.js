@@ -802,19 +802,36 @@ async function login() {
     }
 }
 
-// ФУНКЦИЯ РЕГИСТРАЦИИ
-async function registerUser(userData) {
+// Название должно быть в точности 'register'
+async function register() {
+    const emailInput = document.getElementById('auth-email');
+    const passInput = document.getElementById('auth-password');
+
+    if (!emailInput || !passInput) return console.error("Поля ввода не найдены!");
+
+    const email = emailInput.value.toLowerCase().trim();
+    const pass = passInput.value;
+
+    if (!email || !pass) return alert("Введите данные для регистрации!");
+
     try {
+        // Отправляем данные в Google Таблицу
         await fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // Отправляем "вслепую"
-            body: JSON.stringify({ action: 'register', ...userData })
+            mode: 'no-cors',
+            body: JSON.stringify({
+                action: 'register',
+                email: email,
+                password: pass,
+                name: "Офицер (" + email.split('@')[0] + ")"
+            })
         });
-        
+
         alert("Заявка отправлена! Теперь попробуйте войти.");
         location.reload(); 
     } catch (e) {
-        alert("Ошибка при регистрации.");
+        console.error("Ошибка регистрации:", e);
+        alert("Ошибка сети при попытке регистрации.");
     }
 }
 
@@ -924,7 +941,7 @@ async function syncData() {
         console.error("CORS или ошибка сети:", e);
     }
 }
-async function register(userData) {
+async function registerUser(userData) {
     try {
         // Отправляем запрос в "слепом" режиме (no-cors)
         await fetch(SCRIPT_URL, {
