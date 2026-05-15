@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Chicago PD - Database Terminal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="modal-view" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="auth-screen">
+        <div class="auth-box">
+            <img src="logo.png" alt="CPD Badge" class="auth-logo" id="main-auth-logo" onerror="this.src='https://via.placeholder.com/110?text=LOGO'">
+            <h2>CPD DATABASE</h2>
+            <p class="auth-sub">CHICAGO POLICE DEPARTMENT</p>
+            <input type="email" id="auth-email" placeholder="Email (user@cpd.gov)">
+            <input type="password" id="auth-password" placeholder="Пароль">
+            <div class="auth-buttons">
+                <button id="btn-login" class="btn-primary">Войти</button>
+                <button id="btn-register" class="btn-secondary">Регистрация</button>
+            </div>
+            <p id="auth-error" class="error-text"></p>
+        </div>
+    </div>
+
+    <div id="app-screen" style="display: none;">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="logo.png" alt="Logo" class="side-logo" onerror="this.src='https://via.placeholder.com/45?text=CPD'">
+                <div>
+                    <h1>CHICAGO PD</h1>
+                    <p>DATABASE TERMINAL</p>
+                </div>
+            </div>
+
+            <nav id="sidebar-nav"></nav>
+
+            <div class="sidebar-bottom-brand">
+                <img src="logo.png" alt="CPD Division" class="brand-img" onerror="this.src='https://via.placeholder.com/70?text=CPD+BOTTOM'">
+                <button id="btn-logout" class="btn-logout-small">ВЫХОД ИЗ СИСТЕМЫ</button>
+            </div>
+        </aside>
+
+        <main class="content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <div class="info-block clickable" id="unit-edit">
+                        <span class="label">MARKING</span>
+                        <span id="disp-unit" class="value">---</span>
+                    </div>
+                    <div class="info-block clickable" id="name-edit">
+                        <span class="label">CALLSIGN</span>
+                        <span id="disp-name" class="value">---</span>
+                    </div>
+                    <div class="info-block clickable" id="status-toggle">
+                        <span class="label">STATUS</span>
+                        <span id="disp-status" class="value status-badge">OFF DUTY</span>
+                    </div>
+                    <div class="info-block">
+                        <span class="label">RANK / DIVISION</span>
+                        <span id="disp-rank-div" class="value">USER / UNASSIGNED</span>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <button id="btn-switch-bureau" class="btn-bureau" style="display: none;">DETECTIVE BUREAU ⮂</button>
+                </div>
+            </header>
+
+            <div id="tab-container" class="tab-main"></div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
