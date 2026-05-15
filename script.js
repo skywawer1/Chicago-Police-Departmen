@@ -924,7 +924,7 @@ async function syncData() {
         console.error("CORS или ошибка сети:", e);
     }
 }
-async function registerUser(userData) {
+async function register(userData) {
     try {
         // Отправляем запрос в "слепом" режиме (no-cors)
         await fetch(SCRIPT_URL, {
