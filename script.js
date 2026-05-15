@@ -752,27 +752,32 @@ async function login() {
     
     if(!email || !pass) return alert("Введите данные!");
     
-    btn.innerText = "ВХОД...";
+    btn.innerText = "СВЯЗЬ С БАЗОЙ...";
     btn.disabled = true;
 
     try {
+        // Мы отправляем данные как текст, чтобы обмануть CORS
         const response = await fetch(SCRIPT_URL, {
             method: "POST",
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({ action: "login", email: email, password: pass })
         });
-        const result = await response.text();
+        
+        const resultText = await response.text();
 
-        if (result !== "fail" && result !== "Error") {
-            currentUser = JSON.parse(result);
+        if (resultText !== "fail" && resultText !== "Error") {
+            // Если в ответе пришел JSON пользователя
+            currentUser = JSON.parse(resultText);
             localStorage.setItem('cpd_v5_session', JSON.stringify(currentUser));
-            document.getElementById('auth-error').innerText = "";
-            checkAuth();
-            syncData();
+            
+            checkAuth(); // Переключает экран на терминал
+            if (typeof syncData === "function") syncData(); // Грузит отчеты
         } else {
-            document.getElementById('auth-error').innerText = "Ошибка: неверный Email или пароль.";
+            alert("Ошибка: Неверный Email или пароль.");
         }
     } catch (e) {
-        alert("Ошибка сервера. Проверьте URL скрипта.");
+        console.error(e);
+        alert("Проблема с подключением. Убедитесь, что скрипт опубликован как 'Anyone'.");
     } finally {
         btn.innerText = "Войти";
         btn.disabled = false;
