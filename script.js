@@ -690,7 +690,7 @@ function deleteReport(reportId) {
     }
 }
 // ВСТАВЬТЕ СЮДА ВАШ URL ИЗ GOOGLE APPS SCRIPT
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjLdqt68zAw7csooj5dwE4uSyQANowIJz8_6f323OCRs9xL_xyj-Nz9jREfhwGz6DG/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_M69oKafkxG_uFlclJExmlSmq_rQhBRrcS77bqNdEiNnJUAAT1bJC_qjqcldwo3R5/exec";
 
 let usersList = []; // Список всех юзеров из таблицы
 let  reports = [];   // Список всех отчетов из таблицы
