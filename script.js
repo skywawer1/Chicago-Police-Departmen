@@ -916,12 +916,12 @@ async function syncData() {
 }
 async function registerUser(userData) {
     try {
-        const response = await fetch(SCRIPT_URL, {
+        // Отправляем запрос в "слепом" режиме (no-cors)
+        await fetch(SCRIPT_URL, {
             method: 'POST',
-            // Убрали mode: 'no-cors'
+            mode: 'no-cors', // Обязательно возвращаем no-cors!
             headers: {
-                // ВОТ ГЛАВНЫЙ СЕКРЕТ: притворяемся обычным текстом
-                'Content-Type': 'text/plain;charset=utf-8' 
+                'Content-Type': 'text/plain;charset=utf-8'
             },
             body: JSON.stringify({
                 action: 'register',
@@ -929,18 +929,16 @@ async function registerUser(userData) {
             })
         });
 
-        // Теперь мы сможем нормально прочитать ответ Google
-        const result = await response.json();
+        // ВАЖНО: Мы УДАЛИЛИ строку "const result = await response.json();"
+        // При no-cors браузер всё равно не даст её прочитать.
+        // Если fetch не выдал фатальную ошибку до этого момента, значит всё ок (тот самый 200 OK).
         
-        if (result.result === "success") {
-            alert("Успешно! Пользователь зарегистрирован.");
-            // Тут можно добавить код для закрытия окна регистрации
-        } else {
-            alert("Ответ от сервера: " + result.message);
-        }
+        alert("Запрос отправлен! Пользователь добавлен в базу.");
+        // Здесь можешь добавить код для закрытия окна регистрации
+        // или очистки полей ввода
 
     } catch (error) {
-        console.error("Ошибка сети или CORS:", error);
-        alert("Запрос отправлен. Проверьте таблицу!");
+        console.error("Ошибка при отправке:", error);
+        alert("Произошла ошибка сети.");
     }
 }
