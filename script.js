@@ -914,3 +914,33 @@ async function syncData() {
         console.error("CORS или ошибка сети:", e);
     }
 }
+async function registerUser(userData) {
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            // Убрали mode: 'no-cors'
+            headers: {
+                // ВОТ ГЛАВНЫЙ СЕКРЕТ: притворяемся обычным текстом
+                'Content-Type': 'text/plain;charset=utf-8' 
+            },
+            body: JSON.stringify({
+                action: 'register',
+                ...userData
+            })
+        });
+
+        // Теперь мы сможем нормально прочитать ответ Google
+        const result = await response.json();
+        
+        if (result.result === "success") {
+            alert("Успешно! Пользователь зарегистрирован.");
+            // Тут можно добавить код для закрытия окна регистрации
+        } else {
+            alert("Ответ от сервера: " + result.message);
+        }
+
+    } catch (error) {
+        console.error("Ошибка сети или CORS:", error);
+        alert("Запрос отправлен. Проверьте таблицу!");
+    }
+}
