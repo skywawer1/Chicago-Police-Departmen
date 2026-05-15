@@ -745,6 +745,7 @@ async function syncData() {
     }
 }
 
+// ФУНКЦИЯ ЛОГИНА
 async function login() {
     const email = document.getElementById('auth-email').value.toLowerCase().trim();
     const pass = document.getElementById('auth-password').value;
@@ -752,64 +753,49 @@ async function login() {
     
     if(!email || !pass) return alert("Введите данные!");
     
-    btn.innerText = "СВЯЗЬ С БАЗОЙ...";
+    btn.innerText = "ПРОВЕРКА...";
     btn.disabled = true;
 
     try {
-        // Мы отправляем данные как текст, чтобы обмануть CORS
-        const response = await fetch(SCRIPT_URL, {
-            method: "POST",
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ action: "login", email: email, password: pass })
+        // Используем GET для обхода CORS при чтении данных
+        const params = new URLSearchParams({
+            action: 'login',
+            email: email,
+            password: pass
         });
-        
-        const resultText = await response.text();
 
-        if (resultText !== "fail" && resultText !== "Error") {
-            // Если в ответе пришел JSON пользователя
-            currentUser = JSON.parse(resultText);
+        const response = await fetch(`${SCRIPT_URL}?${params.toString()}`);
+        const result = await response.text();
+
+        if (result !== "fail" && result.includes("{")) {
+            currentUser = JSON.parse(result);
             localStorage.setItem('cpd_v5_session', JSON.stringify(currentUser));
-            
-            checkAuth(); // Переключает экран на терминал
-            if (typeof syncData === "function") syncData(); // Грузит отчеты
+            location.reload(); // Перезагружаем, чтобы интерфейс подхватил данные
         } else {
-            alert("Ошибка: Неверный Email или пароль.");
+            alert("Неверный логин или пароль");
         }
     } catch (e) {
         console.error(e);
-        alert("Проблема с подключением. Убедитесь, что скрипт опубликован как 'Anyone'.");
+        alert("Ошибка связи с базой. Проверьте Deployment в Google Script.");
     } finally {
-        btn.innerText = "Войти";
         btn.disabled = false;
+        btn.innerText = "Войти";
     }
 }
 
-async function register() {
-    const email = document.getElementById('auth-email').value.toLowerCase().trim();
-    const pass = document.getElementById('auth-password').value;
-    
-    if (!email || !pass) return alert("Введите Email и пароль!");
-    
-    const btn = document.getElementById('btn-register');
-    btn.innerText = "РЕГИСТРАЦИЯ...";
-    
+// ФУНКЦИЯ РЕГИСТРАЦИИ
+async function registerUser(userData) {
     try {
-        const response = await fetch(SCRIPT_URL, {
-            method: "POST",
-            body: JSON.stringify({ action: "register", email: email, password: pass })
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Отправляем "вслепую"
+            body: JSON.stringify({ action: 'register', ...userData })
         });
-        const result = await response.text();
-
-        if (result === "success") {
-            alert("Успешная регистрация! Теперь войдите в систему.");
-            login();
-        } else if (result === "exists") {
-            alert("Эта почта уже занята.");
-        }
+        
+        alert("Заявка отправлена! Теперь попробуйте войти.");
+        location.reload(); 
     } catch (e) {
         alert("Ошибка при регистрации.");
-    } finally {
-        btn.innerText = "Регистрация";
     }
 }
 
