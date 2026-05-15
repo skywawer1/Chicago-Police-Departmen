@@ -173,17 +173,27 @@ function logout() {
 }
 
 function checkAuth() {
-    if (currentUser && users[currentUser.email]) {
-        currentUser = { ...users[currentUser.email], email: currentUser.email };
+    // Проверяем, есть ли данные о вошедшем пользователе в памяти браузера
+    const sessionData = localStorage.getItem('cpd_v5_session');
+    
+    if (sessionData) {
+        currentUser = JSON.parse(sessionData);
+        
+        // Скрываем экран входа, показываем терминал
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('app-screen').style.display = 'flex';
-        renderUI();
+        
+        // Отрисовываем интерфейс (имя, ранг и т.д.)
+        if (typeof renderUI === "function") renderUI();
+        
+        // Запускаем синхронизацию данных из таблицы
+        if (typeof syncData === "function") syncData();
     } else {
+        // Если данных нет — показываем экран входа
         document.getElementById('auth-screen').style.display = 'flex';
         document.getElementById('app-screen').style.display = 'none';
     }
 }
-
 function renderUI() {
     document.getElementById('disp-name').textContent = currentUser.name;
     document.getElementById('disp-unit').textContent = currentUser.unit;
