@@ -575,23 +575,46 @@ function renderAdminPanel(container) {
     }
 }
 
-function updateUser() {
+async function updateUser() {
+    // Получаем данные из твоих полей (ID проверены по твоим скринам)
     const email = document.getElementById('adm-email').value.toLowerCase().trim();
-    const name = document.getElementById('adm-name').value.trim();
     const rank = document.getElementById('adm-rank').value;
     const div = document.getElementById('adm-div').value;
 
-    if (!email || !users[email]) return alert("Сотрудник с такой электронной почтой не найден в системе!");
-    
-    if(name) users[email].name = name;
-    users[email].rank = rank;
-    users[email].division = div;
-    
-    save();
-    alert(`Права для ${email} успешно обновлены. Ранг: ${rank}, Отдел: ${div}`);
-    if(currentUser.email === email) checkAuth();
-}
+    if (!email) return alert("Введите Email сотрудника!");
 
+    // Индикация загрузки на кнопке
+    const btn = event.target;
+    const originalText = btn.innerText;
+    btn.innerText = "ОБНОВЛЕНИЕ БАЗЫ...";
+    btn.disabled = true;
+
+    try {
+        // Отправляем данные в Google Script
+        await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Важно для обхода CORS в Google Scripts
+            body: JSON.stringify({
+                action: 'updateUser',
+                targetEmail: email,
+                rank: rank,
+                division: div
+            })
+        });
+
+        alert(`Данные для ${email} обновлены!`);
+        
+        // Обновляем данные локально, чтобы изменения сразу появились
+        if (typeof syncData === 'function') syncData();
+        
+    } catch (e) {
+        console.error(e);
+        alert("Ошибка при соединении с таблицей.");
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
 function updateStats() {
     const area = document.getElementById('adm-area').value.trim();
     const val = document.getElementById('adm-perc').value.trim();
