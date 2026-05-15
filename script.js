@@ -167,19 +167,6 @@ function login() {
         document.getElementById('auth-error').innerText = "Ошибка: неверный Email или пароль.";
     }
 }
-
-function register() {
-    const email = document.getElementById('auth-email').value.toLowerCase().trim();
-    const pass = document.getElementById('auth-password').value;
-    
-    if (!email || !pass) return alert("Введите Email и пароль!");
-    
-    users[email] = { password: pass, name: "Офицер (" + email.split('@')[0] + ")", rank: "USER", division: "Unassigned", unit: "NONE", status: "OFF DUTY" };
-    save();
-    alert("Успешная регистрация! Выполняется автоматический вход...");
-    login(); // Автоматический вход после регистрации
-}
-
 function logout() { 
     localStorage.removeItem('cpd_v5_session'); 
     location.reload(); 
