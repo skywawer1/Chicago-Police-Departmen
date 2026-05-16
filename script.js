@@ -1,145 +1,49 @@
+// ВСТАВЬ СЮДА ССЫЛКУ НА СВОЙ GOOGLE APPS SCRIPT
+const API_URL = "https://script.google.com/macros/s/AKfycbwCoF9Q7c4qd6KvapeRfEGu740FW4vB1E3bDafCnPkh3LeKPg_NcTrwiYF3GfHma_CD/exec"; 
 
-// Строгие шаблоны отчетов из ТЗ
+let users = {};
+let reports = [];
+let gangs = [];
+let shootingStats = {};
+let drafts = JSON.parse(localStorage.getItem('cpd_v5_drafts')) || {};
+let currentUser = JSON.parse(localStorage.getItem('cpd_v5_session')) || null;
+let currentMode = "PATROL"; 
+
+// НАСТОЯЩАЯ БАЗА ДАННЫХ ЗАКОНОДАТЕЛЬСТВА ЧИКАГО (CHICAGO MUNICIPAL CODE & ILCS)
+const CHICAGO_LAWS = [
+    { code: "720 ILCS 5/9-1", type: "uk", title: "First-Degree Murder (Умышленное убийство первой степени)", desc: "Предумышленное неправомерное причинение смерти человеку. Наказывается пожизненным заключением без права на досрочное освобождение. Изъятие оружия." },
+    { code: "720 ILCS 5/12-2", type: "uk", title: "Aggravated Assault of a Peace Officer (Нападение на офицера полиции при отягчающих)", desc: "Нападение или угроза применения физического насилия/оружия в отношении сотрудника правоохранительных органов при исполнении обязанностей." },
+    { code: "720 ILCS 5/12-4", type: "uk", title: "Aggravated Battery (Нанесение тяжких телесных повреждений)", desc: "Умышленное причинение сильного вреда здоровью, повлекшее увечья, с применением кастетов, холодного или огнестрельного оружия." },
+    { code: "720 ILCS 5/18-2", type: "uk", title: "Armed Robbery (Вооруженное ограбление)", desc: "Хищение чужого имущества с применением насилия или угрозой его немедленного применения с использованием огнестрельного или иного оружия." },
+    { code: "720 ILCS 5/19-1", type: "uk", title: "Burglary (Кража со взломом)", desc: "Незаконное проникновение в жилище, транспортное средство или коммерческое здание с целью совершения кражи или иного тяжкого преступления." },
+    { code: "720 ILCS 5/24-1.1", type: "uk", title: "Unlawful Use of Weapons by Felons (Незаконный оборот оружия осужденными)", desc: "Ношение, хранение или перевозка огнестрельного оружия лицами, не имеющими лицензии FOID, либо ранее судимыми лицами. Конфискация оружия." },
+    { code: "720 ILCS 5/31-1", type: "uk", title: "Resisting or Obstructing a Peace Officer (Сопротивление или препятствование офицеру)", desc: "Умышленное физическое сопротивление, отказ подчиниться законным требованиям офицера полиции или создание помех при задержании." },
+    { code: "720 ILCS 5/31-4", type: "uk", title: "Obstructing Justice (Препятствование правосудию)", desc: "Умышленное уничтожение улик, дача ложных показаний, укрытие подозреваемых от органов правопорядка." },
+    { code: "720 ILCS 5/4-102", type: "uk", title: "Vehicle Theft Conspiracy (Угон ТС или соучастие в угоне)", desc: "Неправомерное завладение чужим транспортным средством без согласия владельца, взлом замка зажигания или транспортировка угнанного ТС." },
+    { code: "720 ILCS 570/401", type: "uk", title: "Manufacture or Delivery of Controlled Substances (Производство и сбыт наркотиков)", desc: "Изготовление, фасовка, хранение с целью продажи или прямая передача наркотических веществ. Карается арестом и полной конфискацией." },
+    { code: "MCC 8-4-010", type: "ac", title: "Disorderly Conduct (Нарушение общественного порядка)", desc: "Действия, нарушающие покой граждан: нецензурная брань, необоснованный шум в ночное время, провокация драк в публичных местах. Штраф или арест до 30 дней." },
+    { code: "MCC 8-4-030", type: "ac", title: "Loitering for Gang Activity (Бродяжничество в составе криминальной группировки)", desc: "Нахождение группы лиц (от 2 человек) в публичном месте с целью демонстрации принадлежности к уличной банде, блокирование проходов, вербовка." },
+    { code: "MCC 9-76-140", type: "ac", title: "Driving Under the Influence (Управление ТС в состоянии опьянения)", desc: "Вождение автомобиля под воздействием алкоголя (выше 0.08% BAC) или наркотических средств. Немедленная эвакуация ТС, лишение прав." },
+    { code: "MCC 9-12-010", type: "ac", title: "Reckless Driving (Опасное / Агрессивное вождение)", desc: "Игнорирование дорожных знаков, превышение скорости более чем на 20 миль/ч, создание прямой угрозы жизни пешеходов и других водителей." },
+    { code: "MCC 9-40-060", type: "ac", title: "Fleeing or Attempting to Elude Police (Попытка скрыться на ТС)", desc: "Отказ остановить транспортное средство после подачи офицером звуковых и световых сигналов (крузеров). Переходит в категорию преследования." }
+];
+
 const TEMPLATES = {
-    incident: `CHICAGO POLICE DEPARTMENT
-РАПОРТ ОБ ИНЦИДЕНТЕ
---
-ФИО, звание, маркировка на рации: (Полный ник | Ранг | Маркировка на рации)
-Дата, время и место происшествия: XX-XX-2026 | XX-XX | (Указать место)
-
-Обстоятельства инцидента:
-(Тут описать всю ситуацию)
-
-Лица, причастные к инциденту:
-(Вписать ники как сотрудников причастных так и свидетелей при наличии)
-
-Предварительные выводы:
-(Опишите тут свой предварительный вывод по ситуации. Например какие действия были верны, как можно было бы сделать лучше, какие действия вы считаете оправданными и т.д.)
-
-Принятые меры:
-((Тут описать все ваши принятые меры. К примеру:
-1. Помог осмотреть машину
-2. Обыскал подозреваемого
-3. Вызвал карету скорой помощи
-и т.д.)
-)
-__
-
-Дата: XX.XX.2026
-Время: XX-XX | XX-XX`,
+    incident: `CHICAGO POLICE DEPARTMENT\nРАПОРТ ОБ ИНЦИДЕНТЕ\n--\nФИО, звание, маркировка на рации: (Полный ник | Ранг | Маркировка)\nДата, время и место происшествия: XX-XX-2026 | XX-XX | (Указать место)\n\nОбстоятельства инцидента:\n(Тут описать всю ситуацию)\n\nЛица, причастные к инциденту:\n(Вписать ники как сотрудников причастных так и свидетелей при наличии)\n\nПредварительные выводы:\n(Опишите тут свой предварительный вывод по ситуации)\n\nПринятые меры:\n(1. Помог осмотреть машину\n2. Обыскал подозреваемого)\n__\nДата: XX.XX.2026\nВремя: XX-XX`,
     
-    accident: `CHICAGO POLICE DEPARTMENT
-ОТЧЕТ О ПРОИСШЕСТВИИ
---
-ФИО, звание, маркировка на рации: (Полный ник | Ранг | Маркировка на рации)
-Дата, время и место происшествия: XX-XX-2026 | XX-XX | (Указать место)
-
-Обстоятельства инцидента:
-(Тут описать всю ситуацию)
-
-Лица, причастные к инциденту:
-(Вписать ники как сотрудников причастных так и свидетелей при наличии)
-
-Предварительные выводы:
-(Опишите тут свой предварительный вывод по ситуации. Например какие действия были верны, как можно было бы сделать лучше, какие действия вы считаете оправданными и т.д.)
-
-Принятые меры:
-((Тут описать все ваши принятые меры. К примеру:
-1. Помог осмотреть машину
-2. Обыскал подозреваемого
-3. Вызвал карету скорой помощи
-и т.д.)
-)
-__
-
-Дата: XX.XX.2026
-Время: XX-XX | XX-XX
-Подпись: TEXT`,
+    accident: `CHICAGO POLICE DEPARTMENT\nОТЧЕТ О ПРОИСШЕСТВИИ\n--\nФИО, звание, маркировка на рации: (Полный ник | Ранг | Маркировка)\nДата, время и место происшествия: XX-XX-2026 | XX-XX | (Указать место)\n\nОбстоятельства инцидента:\n(Тут описать всю ситуацию)\n\nПринятые меры:\n(Опишите ваши действия на ситуации)\n__\nДата: XX.XX.2026\nПодпись: TEXT`,
     
-    casefile: `CHICAGO CITY | GANG SUPPRESSION UNIT
-
-1. ОСНОВНАЯ ИНФОРМАЦИЯ
-Номер дела: D-${Math.floor(Math.random()*900000 + 100000)}DT
-Дата открытия: ${new Date().toLocaleDateString()}
-Детектив: Имя детектива
-Отдел: Gang Suppression Unit
-Статус дела: OPEN / CLOSED / SUSPENDED
-Тип преступления: Gang Activity / Drug Trafficking / Assault / Murder / Illegal Weapons
-
-2. ИНФОРМАЦИЯ О ПОДОЗРЕВАЕМОМ
-Личные данные
-Имя Фамилия:
-Дата рождения:
-Национальность:
-Место проживания:
-Номер телефона:
-ID / CID:
-
-Связи
-Банда / группировка:
-Ранг в банде:
-Известные сообщники:
-Транспорт:
-Оружие:
-
-3. ОПИСАНИЕ СИТУАЦИИ
-Краткое описание
-14.05.2026 примерно в 22:30 сотрудники Detective Division получили информацию о незаконной деятельности группировки в районе South Chicago. После наблюдения были замечены лица, проводившие обмен наркотических веществ и оружия.
-
-Полный рапорт
-Подробно расписывается:
-что произошло;
-где произошло;
-кто участвовал;
-какие действия предпринимались;
-как задерживали;
-что нашли;
-сопротивление;
-перестрелка;
-преследование;
-использование оружия.
-
-5. ДОКАЗАТЕЛЬСТВA
-Изъято:
-Glock 17
-AK-47
-Наркотические вещества
-Деньги
-Телефоны
-Маски
-Документы
-
-Фото-доказательства
-Фото с места преступления
-Фото оружия
-Фото транспорта
-BodyCam записи
-CCTV камеры
-
-7. ОБВИНЕНИЯ
-Illegal Possession of Firearm
-Drug Distribution
-Gang Affiliation
-Assault on Officer
-Evading Police
-
-8. ПРИЛОЖЕНИЯ
-Screenshot #1
-Screenshot #2
-Video Evidence
-Audio Recording
-Witness Statement
-
-9. ЗАКЛЮЧЕНИЕ ДЕТЕКТИВА
-На основании собранных доказательств подозреваемый причастен к деятельности организованной преступной группировки и нарушению уголовного кодекса Chicago City.`
+    casefile: `CHICAGO CITY | GANG SUPPRESSION UNIT\n\n1. ОСНОВНАЯ ИНФОРМАЦИЯ\nНомер дела: D-${Math.floor(Math.random()*900000 + 100000)}DT\nДата открытия: ${new Date().toLocaleDateString()}\nДетектив: Имя детектива\nОтдел: Gang Suppression Unit\nСтатус дела: OPEN\nТип преступления: Gang Activity / Drug Trafficking\n\n2. ИНФОРМАЦИЯ О ПОДОЗРЕВАЕМОМ\nИмя Фамилия:\nБанда / группировка:\n\n3. ОПИСАНИЕ СИТУАЦИИ\n(Подробно расписывается хронология наблюдения и оперативной работы)\n\n5. ДОКАЗАТЕЛЬСТВА\n- Изъятые предметы\n- Фотофиксация\n\n7. ОБВИНЕНИЯ\n- Gang Affiliation\n- Drug Distribution`
 };
 
-window.onload = () => {
+window.onload = async () => {
+    bindEvents();
+    await fetchDatabase(); 
+    
     if (Object.keys(users).length === 0) {
         users["admin@cpd.gov"] = { password: "admin", name: "Chief Admin", rank: "ADMIN", division: "Command", unit: "CHIEF", status: "ON DUTY" };
-        save();
+        await saveToServer();
     }
-    bindEvents();
     checkAuth();
 };
 
@@ -154,46 +58,129 @@ function bindEvents() {
     document.querySelector('.close-modal').onclick = () => document.getElementById('modal-view').style.display = 'none';
 }
 
+async function fetchDatabase() {
+    if(!API_URL || API_URL.includes("ТВОЙ_URL")) {
+        loadLocalFallback();
+        return;
+    }
+    try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        users = data.users || {};
+        reports = data.reports || [];
+        gangs = data.gangs || [];
+        shootingStats = data.shootingStats || {};
+    } catch (e) {
+        console.error("Ошибка сети при чтении базы", e);
+        loadLocalFallback();
+    }
+}
+
+async function saveToServer() {
+    if(!API_URL || API_URL.includes("ТВОЙ_URL")) {
+        saveLocalFallback();
+        return;
+    }
+    const dbState = { users, reports, gangs, shootingStats };
+    try {
+        // Отправляем данные как чистый текстовый JSON-поток (снимает лимиты на размер текста/фото)
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(dbState)
+        });
+        saveLocalFallback();
+    } catch(e) {
+        console.error("Ошибка сохранения на сервер", e);
+        saveLocalFallback();
+    }
+}
+
+function loadLocalFallback() {
+    users = JSON.parse(localStorage.getItem('cpd_db_users')) || {};
+    reports = JSON.parse(localStorage.getItem('cpd_db_reports')) || [];
+    gangs = JSON.parse(localStorage.getItem('cpd_db_gangs')) || [];
+    shootingStats = JSON.parse(localStorage.getItem('cpd_db_stats')) || {};
+}
+function saveLocalFallback() {
+    localStorage.setItem('cpd_db_users', JSON.stringify(users));
+    localStorage.setItem('cpd_db_reports', JSON.stringify(reports));
+    localStorage.setItem('cpd_db_gangs', JSON.stringify(gangs));
+    localStorage.setItem('cpd_db_stats', JSON.stringify(shootingStats));
+}
+
 function login() {
     const email = document.getElementById('auth-email').value.toLowerCase().trim();
     const pass = document.getElementById('auth-password').value;
-    
     if (users[email] && users[email].password === pass) {
         currentUser = { ...users[email], email: email };
         localStorage.setItem('cpd_v5_session', JSON.stringify(currentUser));
-        document.getElementById('auth-error').innerText = "";
         checkAuth();
     } else {
         document.getElementById('auth-error').innerText = "Ошибка: неверный Email или пароль.";
     }
 }
+
+async function register() {
+    const email = document.getElementById('auth-email').value.toLowerCase().trim();
+    const pass = document.getElementById('auth-password').value;
+    if (!email || !pass) return alert("Введите Email и пароль!");
+    if (users[email]) return alert("Эта почта уже зарегистрирована.");
+    
+    users[email] = { password: pass, name: "Civilian (" + email.split('@')[0] + ")", rank: "USER", division: "Unassigned", unit: "NONE", status: "OFF DUTY" };
+    await saveToServer();
+    alert("Успешная регистрация! Ваш аккаунт находится в статусе гражданского (USER). Доступ заблокирован до одобрения шефом.");
+    currentUser = { ...users[email], email: email };
+    localStorage.setItem('cpd_v5_session', JSON.stringify(currentUser));
+    checkAuth();
+}
+
 function logout() { 
     localStorage.removeItem('cpd_v5_session'); 
     location.reload(); 
 }
 
 function checkAuth() {
-    // Проверяем, есть ли данные о вошедшем пользователе в памяти браузера
-    const sessionData = localStorage.getItem('cpd_v5_session');
-    
-    if (sessionData) {
-        currentUser = JSON.parse(sessionData);
-        
-        // Скрываем экран входа, показываем терминал
+    if (currentUser) {
+        currentUser = { ...users[currentUser.email], email: currentUser.email };
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('app-screen').style.display = 'flex';
         
-        // Отрисовываем интерфейс (имя, ранг и т.д.)
-        if (typeof renderUI === "function") renderUI();
-        
-        // Запускаем синхронизацию данных из таблицы
-        if (typeof syncData === "function") syncData();
+        if (currentUser.rank === "USER") {
+            document.getElementById('sidebar-el').style.display = 'none';
+            document.getElementById('topbar-el').style.display = 'none';
+            renderLockScreen();
+        } else {
+            document.getElementById('sidebar-el').style.display = 'flex';
+            document.getElementById('topbar-el').style.display = 'flex';
+            renderUI();
+        }
     } else {
-        // Если данных нет — показываем экран входа
         document.getElementById('auth-screen').style.display = 'flex';
         document.getElementById('app-screen').style.display = 'none';
     }
 }
+
+function renderLockScreen() {
+    const container = document.getElementById('tab-container');
+    container.innerHTML = `
+        <div class="lock-screen-container">
+            <div class="lock-box">
+                <div class="lock-icon">🛑</div>
+                <div class="lock-title">Access Denied / Отказано в доступе</div>
+                <div class="lock-subtitle">CHICAGO POLICE DEPARTMENT — SECURE DATA TERMINAL</div>
+                <div class="lock-text">
+                    Ваша учетная запись <strong>${currentUser.email}</strong> успешно зарегистрирована в системе терминала CPD.<br><br>
+                    Однако на текущий момент у вас установлен статус гражданского (USER). Доступ к закрытой тактической информации, просмотр личного состава, рапортов и активных банд заблокирован.<br><br>
+                    <strong>Что делать?</strong> Обратитесь к руководству (Command Staff) или Шефу Департамента для верификации вашей личности, назначения дивизиона и изменения системного ранга.
+                </div>
+                <button onclick="logout()" class="btn-primary" style="background:#ef4444; border-color:#ef4444;">ВЫЙТИ ИЗ АККАУНТА</button>
+            </div>
+        </div>
+    `;
+}
+
 function renderUI() {
     document.getElementById('disp-name').textContent = currentUser.name;
     document.getElementById('disp-unit').textContent = currentUser.unit;
@@ -202,28 +189,38 @@ function renderUI() {
     const statusEl = document.getElementById('disp-status');
     statusEl.textContent = currentUser.status;
     statusEl.className = 'value status-badge ' + currentUser.status.replace(' ', '-').toLowerCase();
-
-    const hasDetAccess = currentUser.rank === "ADMIN" || currentUser.rank === "DETECTIVE" || currentUser.division === "GED";
+    
+    // Переключатель Детективного Бюро виден только админам, детективам и ГЕД
+    const hasDetAccess = checkGedOrDetectiveAccess();
     document.getElementById('btn-switch-bureau').style.display = hasDetAccess ? 'block' : 'none';
     
+    // Если доступ потерян (например, админ сменил ранг прямо во время сессии), возвращаем в патрульный режим
+    if (!hasDetAccess && currentMode === "DETECTIVE") {
+        currentMode = "PATROL";
+    }
+    
     renderNav();
+}
+
+// Вспомогательная функция проверки прав для GED и Детективов
+function checkGedOrDetectiveAccess() {
+    if (!currentUser) return false;
+    const r = currentUser.rank;
+    const d = currentUser.division;
+    return (r === "ADMIN" || r === "DETECTIVE" || d === "GED" || d === "GED Patrol Division");
 }
 
 function renderNav() {
     const nav = document.getElementById('sidebar-nav');
     nav.innerHTML = '';
     let menu = [];
-
-    if (currentUser.rank === "USER") {
-        menu.push('Ожидание одобрения');
+    
+    if (currentMode === "PATROL") {
+        menu.push('Новый отчёт', 'Мои отчёты', 'Все отчёты', 'Все патрульные', 'Законы Чикаго', 'Статистика');
     } else {
-        if (currentMode === "PATROL") {
-            menu.push('Новый отчёт', 'Мои отчёты', 'Все отчёты', 'Все патрульные', 'Статистика');
-        } else {
-            menu.push('Кейс-файлы', 'Активные банды', 'Сотрудники ГЕД', 'Статистика районов');
-        }
-        if (currentUser.rank === "ADMIN") menu.push('Панель Управления');
+        menu.push('Кейс-файлы', 'Активные банды', 'Сотрудники ГЕД', 'Законы Чикаго', 'Статистика районов');
     }
+    if (currentUser.rank === "ADMIN") menu.push('Панель Управления');
 
     menu.forEach(item => {
         const a = document.createElement('a');
@@ -247,39 +244,79 @@ function switchTab(tab) {
     const container = document.getElementById('tab-container');
     container.innerHTML = `<h2 class="tab-title">${tab.toUpperCase()}</h2>`;
     
-    if (tab === 'Ожидание одобрения') {
-        container.innerHTML += `<p class="empty-text">Вы успешно зарегистрированы в системе CPD, но администрация еще не выдала вам ранг полиции Чикаго. Обратитесь к шефу/администратору для привязки ранга и дивизиона к вашей почте: <strong>${currentUser.email}</strong>.</p>`;
-    }
-    else if (tab === 'Новый отчёт' || tab === 'Кейс-файлы') {
-        let isCase = (tab === 'Кейс-файлы');
-        let options = !isCase ? 
-            `<option value="incident">РАПОРТ ОБ ИНЦИДЕНТЕ</option><option value="accident">ОТЧЕТ О ПРОИСШЕСТВИИ</option>` : 
-            `<option value="casefile">CASE FILE — DETECTIVE DIVISION</option>`;
-            
+    // ЖЕСТКАЯ ПРОВЕРКА НА ПРАВА КЕЙС-ФАЙЛОВ
+    if (tab === 'Кейс-файлы') {
+        if (!checkGedOrDetectiveAccess()) {
+            container.innerHTML += `
+                <div style="background: rgba(239, 64, 64, 0.1); border: 2px dashed #ef4444; border-radius: 6px; padding: 30px; text-align: center; margin-top: 20px;">
+                    <h3 style="color: #ef4444; margin-top: 0; letter-spacing: 1px;">[ДОСТУП ОГРАНИЧЕН]</h3>
+                    <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6; margin: 0;">
+                        Просмотр, редактирование и добавление материалов в категорию <strong>Кейс-файлы (Case Files)</strong> разрешены исключительно авторизованным сотрудникам <strong>Gang Suppression Unit (GED)</strong> и следственному составу Детективного Бюро.
+                    </p>
+                </div>
+            `;
+            return; 
+        }
+
+        // Если проверка пройдена — рендерим полноценный интерфейс кейс-файлов
         container.innerHTML += `
             <div class="form-box">
                 <select id="report-type" class="input-field" onchange="applyTemplate()">
                     <option value="">-- ВЫБЕРИТЕ ФОРМАТ ОТЧЕТА --</option>
-                    ${options}
+                    <option value="casefile">CASE FILE — DETECTIVE DIVISION</option>
                 </select>
-                <textarea id="report-text" class="report-area" placeholder="Текст отчета сгенерируется после выбора формата сверху..."></textarea>
+                <textarea id="report-text" class="report-area" placeholder="Текст отчета сгенерируется после выбора формата..."></textarea>
                 
                 <div class="photo-uploader">
-                    <label for="photo-input" class="upload-label">📁 ДОБАВИТЬ МНОЖЕСТВО ФОТОГРАФИЙ ИЛИ СКРИНШОТОВ</label>
+                    <label for="photo-input" class="upload-label">📁 ДОБАВИТЬ МНОЖЕСТВО ФОТОГРАФИЙ</label>
                     <input type="file" id="photo-input" multiple accept="image/*" style="display:none;" onchange="previewPhotos()">
                     <div id="photo-previews" class="preview-container"></div>
                 </div>
 
                 <div class="actions">
                     <button onclick="saveDraft()" class="btn-secondary">СОХРАНИТЬ В ЧЕРНОВИК</button>
-                    <button onclick="submitReport('${isCase ? 'casefile' : 'patrol'}')" class="btn-primary">ОТПРАВИТЬ В БАЗУ ДАННЫХ</button>
+                    <button onclick="submitReport('casefile')" class="btn-primary">ОТПРАВИТЬ В БАЗУ ДАННЫХ</button>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 40px; color: var(--accent-blue);">АРХИВ КЕЙС-ФАЙЛОВ ДЕПАРТАМЕНТА</h3>
+        `;
+        
+        if (drafts[currentUser.email + '_casefile']) {
+            document.getElementById('report-text').value = drafts[currentUser.email + '_casefile'];
+        }
+
+        // Выводим существующие кейс-файлы ниже формы
+        let caseLists = reports.filter(r => r.globalType === 'casefile');
+        renderReportList(container, caseLists);
+        return;
+    }
+
+    // Рендер всех остальных стандартных вкладок
+    if (tab === 'Новый отчёт') {
+        container.innerHTML += `
+            <div class="form-box">
+                <select id="report-type" class="input-field" onchange="applyTemplate()">
+                    <option value="">-- ВЫБЕРИТЕ ФОРМАТ ОТЧЕТА --</option>
+                    <option value="incident">РАПОРТ ОБ ИНЦИДЕНТЕ</option>
+                    <option value="accident">ОТЧЕТ О ПРОИСШЕСТВИИ</option>
+                </select>
+                <textarea id="report-text" class="report-area" placeholder="Текст отчета сгенерируется после выбора формата..."></textarea>
+                
+                <div class="photo-uploader">
+                    <label for="photo-input" class="upload-label">📁 ДОБАВИТЬ МНОЖЕСТВО ФОТОГРАФИЙ</label>
+                    <input type="file" id="photo-input" multiple accept="image/*" style="display:none;" onchange="previewPhotos()">
+                    <div id="photo-previews" class="preview-container"></div>
+                </div>
+
+                <div class="actions">
+                    <button onclick="saveDraft()" class="btn-secondary">СОХРАНИТЬ В ЧЕРНОВИК</button>
+                    <button onclick="submitReport('patrol')" class="btn-primary">ОТПРАВИТЬ В БАЗУ ДАННЫХ</button>
                 </div>
             </div>
         `;
-        
-        const currentType = isCase ? 'casefile' : 'patrol';
-        if (drafts[currentUser.email + '_' + currentType]) {
-            document.getElementById('report-text').value = drafts[currentUser.email + '_' + currentType];
+        if (drafts[currentUser.email + '_patrol']) {
+            document.getElementById('report-text').value = drafts[currentUser.email + '_patrol'];
         }
     } 
     else if (tab === 'Мои отчёты' || tab === 'Все отчёты') {
@@ -288,25 +325,52 @@ function switchTab(tab) {
         else list = reports.filter(r => r.globalType === 'patrol');
         renderReportList(container, list);
     }
-    else if (tab === 'Все патрульные') {
-        const patrolUsers = Object.keys(users)
-            .filter(email => users[email].division === "Patrol Division" || users[email].rank === "PO")
-            .map(email => ({ email, ...users[email] }));
-            
+    else if (tab === 'Все патрульные' || tab === 'Сотрудники ГЕД') {
+        const isGED = tab === 'Сотрудники ГЕД';
+        const staff = Object.values(users).filter(u => {
+            if (u.rank === "USER") return false; 
+            if (isGED) return u.division === "GED" || u.division === "GED Patrol Division" || u.rank === "DETECTIVE" || u.rank === "ADMIN";
+            return true; 
+        });
+        
         container.innerHTML += `<div class="staff-grid">`;
-        if (patrolUsers.length === 0) {
-            container.innerHTML += `<p class="empty-text">Патрульных сотрудников пока нет в базе.</p>`;
-        }
-        patrolUsers.forEach(p => {
+        staff.forEach(d => {
             container.innerHTML += `
                 <div class="staff-card">
-                    <img src="https://via.placeholder.com/60?text=CPD" style="border-radius:50%; margin-bottom:10px;">
-                    <h3>${p.name}</h3>
-                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${p.rank}</p>
-                    <p style="font-size:12px; color:var(--text-gray);">${p.division} | Маркировка: ${p.unit}</p>
-                    <span class="status-badge ${p.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${p.status}</span>
+                    <img src="logo.png" style="width:50px; border-radius:50%; margin-bottom:10px;">
+                    <h3>${d.name}</h3>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank}</p>
+                    <p style="font-size:12px; color:var(--text-gray);">${d.division} | Маркировка: ${d.unit}</p>
+                    <span class="status-badge ${d.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${d.status}</span>
                 </div>`;
         });
+        container.innerHTML += `</div>`;
+    }
+    else if (tab === 'Законы Чикаго') {
+        container.innerHTML += `
+            <div class="search-box">
+                <input type="text" id="law-search" class="input-field" placeholder="Начните вводить название, статью или ключевое слово (например: Murder, Оружие, 720...)" oninput="filterLaws()">
+            </div>
+            <div id="laws-list" class="laws-grid"></div>
+        `;
+        filterLaws();
+    }
+    else if (tab === 'Активные банды') {
+        container.innerHTML += `<h3>ЗАРЕГИСТРИРОВАННЫЕ ПРЕСТУПНЫЕ ГРУППИРОВКИ</h3><div class="gang-grid" id="gang-container"></div>`;
+        const gCont = document.getElementById('gang-container');
+        gangs.forEach((g) => {
+            const div = document.createElement('div');
+            div.className = 'gang-card';
+            div.innerHTML = `<h3>${g.name}</h3><p style="color:var(--text-gray); font-size:12px; margin-top:10px;">Нажмите для открытия личного дела</p>`;
+            div.onclick = () => viewGang(g);
+            gCont.appendChild(div);
+        });
+    }
+    else if (tab === 'Статистика районов') {
+        container.innerHTML += `<div class="stat-grid">`;
+        for (let area in shootingStats) {
+            container.innerHTML += `<div class="stat-card"><strong>${area}</strong><br><span style="color:#ef4444; font-size: 18px; font-weight:bold; display:block; margin-top:5px;">Индекс стрельбы: ${shootingStats[area]}</span></div>`;
+        }
         container.innerHTML += `</div>`;
     }
     else if (tab === 'Статистика') {
@@ -318,57 +382,14 @@ function switchTab(tab) {
             .map(email => ({ email, ...users[email], count: stats[email] || 0 }))
             .sort((a, b) => b.count - a.count);
             
-        container.innerHTML += `<p class="empty-text" style="margin-bottom:15px;">Сотрудники, зарегистрированные в системе и написавшие наибольшее количество отчетов:</p><div class="stat-grid">`;
+        container.innerHTML += `<div class="stat-grid">`;
         activeUsers.forEach(u => {
             container.innerHTML += `
                 <div class="stat-card">
                     <h3>${u.name}</h3>
-                    <p>Позывной: <strong>${u.unit}</strong></p>
+                    <p>Маркировка: <strong>${u.unit}</strong></p>
                     <p>Дивизион: <strong>${u.division}</strong></p>
-                    <p style="margin-top:10px; color:var(--accent-blue);">Всего отчетов: <span style="font-size:20px; font-weight:bold;">${u.count}</span></p>
-                </div>`;
-        });
-        container.innerHTML += `</div>`;
-    }
-    else if (tab === 'Активные банды') {
-        let detStats = {};
-        reports.filter(r => r.type === 'casefile').forEach(r => { detStats[r.email] = (detStats[r.email] || 0) + 1; });
-        
-        container.innerHTML += `<h3 style="color:var(--accent-blue); margin-bottom:10px;">СТАТИСТИКА АКТИВНОСТИ ДЕТЕКТИВОВ (CASE FILES)</h3><div class="stat-grid" style="margin-bottom: 30px;">`;
-        for(let email in users) {
-            if(users[email].rank === "DETECTIVE" || users[email].division === "GED" || users[email].rank === "ADMIN") {
-                container.innerHTML += `<div class="stat-card"><strong>${users[email].name}</strong><br>Кейс-файлов в базе: ${detStats[email] || 0}</div>`;
-            }
-        }
-        container.innerHTML += `</div><hr style="border-color:var(--border); margin-bottom:20px;"><h3>СПИСОК КРИМИНАЛЬНЫХ ГРУППИРОВОК Чикаго</h3><div class="gang-grid" id="gang-container"></div>`;
-        
-        const gCont = document.getElementById('gang-container');
-        gangs.forEach((g, idx) => {
-            const div = document.createElement('div');
-            div.className = 'gang-card';
-            div.innerHTML = `<h3>${g.name}</h3><p style="color:var(--text-gray); font-size:12px; margin-top:10px;">Нажмите, чтобы открыть досье ОПГ</p>`;
-            div.onclick = () => viewGang(g);
-            gCont.appendChild(div);
-        });
-    }
-    else if (tab === 'Статистика районов') {
-        container.innerHTML += `<p class="empty-text" style="margin-bottom:15px;">Официа данные по росту и уровню уличной стрельбы по юрисдикциям:</p><div class="stat-grid">`;
-        for (let area in shootingStats) {
-            container.innerHTML += `<div class="stat-card"><strong>${area}</strong><br><span style="color:#ef4444; font-size: 18px; font-weight:bold; display:block; margin-top:5px;">Индекс стрельбы: ${shootingStats[area]}</span></div>`;
-        }
-        container.innerHTML += `</div>`;
-    }
-    else if (tab === 'Сотрудники ГЕД') {
-        const dets = Object.values(users).filter(u => u.division === "GED" || u.rank === "DETECTIVE" || u.rank === "ADMIN");
-        container.innerHTML += `<div class="staff-grid">`;
-        dets.forEach(d => {
-            container.innerHTML += `
-                <div class="staff-card">
-                    <img src="https://via.placeholder.com/60?text=CPD" style="border-radius:50%; margin-bottom:10px;">
-                    <h3>${d.name}</h3>
-                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank}</p>
-                    <p style="font-size:12px; color:var(--text-gray);">${d.division} | Маркировка: ${d.unit}</p>
-                    <span class="status-badge ${d.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${d.status}</span>
+                    <p style="margin-top:10px; color:var(--accent-blue);">Написано отчетов: <span style="font-size:20px; font-weight:bold;">${u.count}</span></p>
                 </div>`;
         });
         container.innerHTML += `</div>`;
@@ -378,9 +399,39 @@ function switchTab(tab) {
     }
 }
 
+function filterLaws() {
+    const query = document.getElementById('law-search') ? document.getElementById('law-search').value.toLowerCase().trim() : '';
+    const listCont = document.getElementById('laws-list');
+    if(!listCont) return;
+    listCont.innerHTML = '';
+    
+    const filtered = CHICAGO_LAWS.filter(law => 
+        law.code.toLowerCase().includes(query) || 
+        law.title.toLowerCase().includes(query) || 
+        law.desc.toLowerCase().includes(query)
+    );
+    
+    if(filtered.length === 0) {
+        listCont.innerHTML = '<p class="empty-text" style="color:var(--text-gray); padding:10px;">По данному поисковому запросу ничего не найдено в кодексе.</p>';
+        return;
+    }
+    
+    filtered.forEach(law => {
+        listCont.innerHTML += `
+            <div class="law-card">
+                <div class="law-header">
+                    <span class="law-code ${law.type === 'ac' ? 'ac' : ''}">${law.code}</span>
+                    <h4 class="law-title">${law.title}</h4>
+                </div>
+                <p class="law-desc">${law.desc}</p>
+            </div>
+        `;
+    });
+}
+
 function renderReportList(container, list) {
     if (list.length === 0) {
-        container.innerHTML += `<p class="empty-text">Отчетов данной категории не обнаружено.</p>`;
+        container.innerHTML += `<p class="empty-text" style="color:var(--text-gray); padding: 10px;">Записей данной категории не обнаружено.</p>`;
         return;
     }
     list.forEach(r => {
@@ -388,10 +439,10 @@ function renderReportList(container, list) {
         div.className = 'report-card';
         div.innerHTML = `
             <div class="report-card-header">
-                <strong style="color:var(--accent-blue);">${r.type.toUpperCase()}</strong>
+                <strong style="color:${r.globalType === 'casefile' ? '#ef4444' : 'var(--accent-blue)'};">${r.type.toUpperCase()}</strong>
                 <span style="font-size:12px; color:var(--text-gray);">${r.date}</span>
             </div>
-            <div class="report-card-body">Автор рапорта: ${r.author} [${r.unit}] | Подразделение: ${r.division}</div>
+            <div class="report-card-body">Автор: ${r.author} [${r.unit}] | ${r.division}</div>
         `;
         div.onclick = () => viewReport(r);
         container.appendChild(div);
@@ -402,8 +453,6 @@ function applyTemplate() {
     const type = document.getElementById('report-type').value;
     if (TEMPLATES[type]) {
         document.getElementById('report-text').value = TEMPLATES[type];
-    } else {
-        document.getElementById('report-text').value = '';
     }
 }
 
@@ -411,9 +460,7 @@ let loadedPhotos = [];
 async function previewPhotos() {
     const files = document.getElementById('photo-input').files;
     const cont = document.getElementById('photo-previews');
-    cont.innerHTML = '';
-    loadedPhotos = [];
-
+    
     for(let file of files) {
         const base64 = await toBase64(file);
         loadedPhotos.push(base64);
@@ -424,22 +471,20 @@ async function previewPhotos() {
 function saveDraft() {
     const text = document.getElementById('report-text').value;
     const type = currentMode === 'PATROL' ? 'patrol' : 'casefile';
-    
-    if(!text) return alert("Нечего сохранять в черновик.");
+    if(!text) return alert("Нечего сохранять.");
     
     drafts[currentUser.email + '_' + type] = text;
     localStorage.setItem('cpd_v5_drafts', JSON.stringify(drafts));
-    alert("Ваш несохраненный отчет успешно записан в черновик текущей вкладки!");
+    alert("Черновик сохранен на вашем ПК.");
 }
 
 async function submitReport(globalType) {
     const type = document.getElementById('report-type').value;
     const text = document.getElementById('report-text').value;
-    
-    if (!type || !text) return alert("Ошибка: выберите тип документа и заполните текстовые поля!");
+    if (!type || !text) return alert("Заполните текст отчета!");
     
     reports.unshift({
-        id: Date.now(), // Уникальный ID для удаления
+        id: Date.now().toString(),
         type: type,
         globalType: globalType,
         text: text,
@@ -453,34 +498,45 @@ async function submitReport(globalType) {
     
     delete drafts[currentUser.email + '_' + globalType];
     localStorage.setItem('cpd_v5_drafts', JSON.stringify(drafts));
-    save();
     
-    alert("Документ успешно загружен и отправлен в архив Главного Управления!");
+    await saveToServer();
+    alert("Запись успешно синхронизирована с таблицей!");
     loadedPhotos = [];
-    switchTab(currentMode === 'PATROL' ? 'Мои отчёты' : 'Кейс-файлы');
+    
+    if (globalType === 'casefile') {
+        switchTab('Кейс-файлы');
+    } else {
+        switchTab('Мои отчёты');
+    }
 }
 
 function viewReport(r) {
     const m = document.getElementById('modal-view');
     m.style.display = 'flex';
-    
-    let photoHtml = r.photos && r.photos.length ? r.photos.map(p => `<img src="${p}" class="report-photo" onclick="window.open(this.src)">`).join('') : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
-    
-    // Кнопка удаления только для администратора
-    let adminDeleteBtn = currentUser.rank === "ADMIN" ? 
-        `<button onclick="deleteReport(${r.id})" class="btn-delete-action" style="margin-top: 20px; width: 100%; padding: 10px;">УДАЛИТЬ ОТЧЕТ ИЗ БАЗЫ</button>` : '';
+    let photoHtml = r.photos && r.photos.length ? r.photos.map(p => `<img src="${p}" class="report-photo" onclick="window.open(this.src)">`).join('') : '<p style="color:var(--text-gray)">Фото отсутствуют.</p>';
+    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="margin-top:15px; padding: 10px;">УДАЛИТЬ ИЗ ТАБЛИЦЫ</button>` : '';
 
     document.getElementById('modal-body').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
-            <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${r.type.toUpperCase()}</h1>
+            <h1 style="color:${r.globalType === 'casefile' ? '#ef4444' : 'var(--accent-blue)'}; margin:0; font-size:20px;">${r.type.toUpperCase()}</h1>
             <span style="color:var(--text-gray); font-size:14px;">${r.date}</span>
         </div>
-        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${r.author} [${r.unit}] | <strong>ДИВИЗИОН:</strong> ${r.division} (${r.email})</p>
+        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${r.author} [${r.unit}] | <strong>ДИВИЗИОН:</strong> ${r.division}</p>
         <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
-        <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
+        <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ:</h3>
         <div class="report-photos-grid">${photoHtml}</div>
-        ${adminDeleteBtn}
+        ${adminBtn}
     `;
+}
+
+async function deleteReport(id) {
+    if (confirm("Удалить эту запись из таблицы окончательно?")) {
+        reports = reports.filter(r => r.id !== id);
+        await saveToServer();
+        document.getElementById('modal-view').style.display = 'none';
+        alert("Удалено.");
+        document.querySelector('.nav-item.active').click();
+    }
 }
 
 function viewGang(g) {
@@ -496,162 +552,128 @@ function renderAdminPanel(container) {
     container.innerHTML += `
         <div class="admin-panel-grid">
             <div class="form-box admin-box">
-                <h3>УПРАВЛЕНИЕ РАНГАМИ И ПОЧТАМИ ПОЛЬЗОВАТЕЛЕЙ</h3>
-                <p style="font-size:11px; color:var(--text-gray); margin-bottom:10px;">Введите почту зарегистрированного юзера для настройки:</p>
+                <h3>УПРАВЛЕНИЕ РАНГАМИ</h3>
                 <input id="adm-email" class="input-field" placeholder="Email сотрудника (user@cpd.gov)">
                 <input id="adm-name" class="input-field" placeholder="Позывной / Имя Фамилия (John Doe)">
-                
                 <label style="font-size:11px; color:var(--text-gray)">Ранг/Доступ:</label>
                 <select id="adm-rank" class="input-field">
-                    <option value="USER">USER (Гражданский - без доступа)</option>
+                    <option value="USER">USER (Без доступа)</option>
                     <option value="PO">PO (Patrol Officer)</option>
                     <option value="SERGEANT">SERGEANT</option>
-                    <option value="DETECTIVE">DETECTIVE (Доступ к Бюро)</option>
-                    <option value="ADMIN">ADMIN (Суперадминистратор)</option>
+                    <option value="DETECTIVE">DETECTIVE</option>
+                    <option value="ADMIN">ADMIN</option>
                 </select>
-                
                 <label style="font-size:11px; color:var(--text-gray)">Дивизион:</label>
                 <select id="adm-div" class="input-field">
                     <option value="Unassigned">Unassigned</option>
                     <option value="Patrol Division">Patrol Division</option>
+                    <option value="GED Patrol Division">GED Patrol Division</option>
                     <option value="GED">GED (Gang Suppression Unit)</option>
                     <option value="Detective Bureau">Detective Bureau</option>
                 </select>
-                <button onclick="updateUser()" class="btn-primary" style="width:100%; margin-top:10px;">ВЫДАТЬ ЗВАНИЕ И ПРАВА</button>
+                <button onclick="updateUser()" class="btn-primary" style="width:100%; margin-top:10px;">ВЫДАТЬ ЗВАНИЕ</button>
             </div>
 
             <div class="form-box admin-box">
-                <h3>ДОБАВЛЕНИЕ НОВОЙ АКТИВНОЙ БАНДЫ</h3>
+                <h3>ДОБАВЛЕНИЕ БАНДЫ</h3>
                 <input id="adm-gang" class="input-field" placeholder="Название ОПГ">
-                <textarea id="adm-gang-info" class="input-field" style="height:120px;" placeholder="Заполните информацию о банде..."></textarea>
-                <button onclick="addGang()" class="btn-primary" style="width:100%">ДОБАВИТЬ В БАЗУ ДАННЫХ ДЕТЕКТИВОВ</button>
+                <textarea id="adm-gang-info" class="input-field" style="height:120px;" placeholder="Информация о банде..."></textarea>
+                <button onclick="addGang()" class="btn-primary" style="width:100%">ДОБАВИТЬ В БАЗУ</button>
             </div>
 
             <div class="form-box admin-box">
-                <h3>РЕДАКТОР СТАТИСТИКИ СТРЕЛЬБЫ</h3>
-                <input id="adm-area" class="input-field" placeholder="Название района (например, South Chicago)">
-                <input id="adm-perc" class="input-field" placeholder="Процент / уровень опасности (например, 74%)">
-                <button onclick="updateStats()" class="btn-primary" style="width:100%">ОБНОВИТЬ КАРТУ ПРЕСТУПНОСТИ</button>
+                <h3>РЕДАКТОР СТРЕЛЬБЫ</h3>
+                <input id="adm-area" class="input-field" placeholder="Район">
+                <input id="adm-perc" class="input-field" placeholder="Процент опасности (например, 74%)">
+                <button onclick="updateStats()" class="btn-primary" style="width:100%">ОБНОВИТЬ</button>
             </div>
         </div>
-
-        <div class="form-box admin-box" style="max-width: 100%; margin-top: 20px; border-color: var(--danger);">
-            <h3 style="color: var(--danger);">УПРАВЛЕНИЕ УДАЛЕНИЕМ ДАННЫХ (БАНДЫ И РАЙОНЫ)</h3>
-            <p style="font-size:12px; color:var(--text-gray); margin-bottom:15px;">Кликните по кнопке «УДАЛИТЬ», чтобы навсегда стереть объект из базы данных терминала.</p>
-            
+        <div class="form-box admin-box" style="margin-top: 20px; border-color: var(--danger);">
+            <h3 style="color: var(--danger);">УДАЛЕНИЕ ДАННЫХ ИЗ ТАБЛИЦЫ</h3>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                <div>
-                    <h4 style="font-size:13px; margin-bottom:10px;">Активные банды:</h4>
-                    <div id="adm-delete-gangs-list" style="display:flex; flex-direction:column; gap:5px;"></div>
-                </div>
-                <div>
-                    <h4 style="font-size:13px; margin-bottom:10px;">Статистика районов:</h4>
-                    <div id="adm-delete-areas-list" style="display:flex; flex-direction:column; gap:5px;"></div>
-                </div>
+                <div id="adm-delete-gangs-list"><h4>Активные банды:</h4></div>
+                <div id="adm-delete-areas-list"><h4>Статистика районов:</h4></div>
             </div>
         </div>
     `;
 
     const gangList = document.getElementById('adm-delete-gangs-list');
     gangs.forEach((g, idx) => {
-        gangList.innerHTML += `
-            <div class="delete-item-row">
-                <span>${g.name}</span>
-                <button onclick="deleteGang(${idx})" class="btn-delete-action">УДАЛИТЬ</button>
-            </div>`;
+        gangList.innerHTML += `<div class="delete-item-row"><span>${g.name}</span><button onclick="deleteGang(${idx})" class="btn-delete-action">УДАЛИТЬ</button></div>`;
     });
 
     const areaList = document.getElementById('adm-delete-areas-list');
     for (let area in shootingStats) {
-        areaList.innerHTML += `
-            <div class="delete-item-row">
-                <span>${area} (${shootingStats[area]})</span>
-                <button onclick="deleteArea('${area}')" class="btn-delete-action">УДАЛИТЬ</button>
-            </div>`;
+        areaList.innerHTML += `<div class="delete-item-row"><span>${area}</span><button onclick="deleteArea('${area}')" class="btn-delete-action">УДАЛИТЬ</button></div>`;
     }
 }
 
 async function updateUser() {
-    // Получаем данные из твоих полей (ID проверены по твоим скринам)
     const email = document.getElementById('adm-email').value.toLowerCase().trim();
-    const rank = document.getElementById('adm-rank').value;
-    const div = document.getElementById('adm-div').value;
-
-    if (!email) return alert("Введите Email сотрудника!");
-
-    // Индикация загрузки на кнопке
-    const btn = event.target;
-    const originalText = btn.innerText;
-    btn.innerText = "ОБНОВЛЕНИЕ БАЗЫ...";
-    btn.disabled = true;
-
-    try {
-        // Отправляем данные в Google Script
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Важно для обхода CORS в Google Scripts
-            body: JSON.stringify({
-                action: 'updateUser',
-                targetEmail: email,
-                rank: rank,
-                division: div
-            })
-        });
-
-        alert(`Данные для ${email} обновлены!`);
-        
-        // Обновляем данные локально, чтобы изменения сразу появились
-        if (typeof syncData === 'function') syncData();
-        
-    } catch (e) {
-        console.error(e);
-        alert("Ошибка при соединении с таблицей.");
-    } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-    }
-}
-function updateStats() {
-    const area = document.getElementById('adm-area').value.trim();
-    const val = document.getElementById('adm-perc').value.trim();
+    if (!users[email]) return alert("Сотрудник не найден!");
     
-    if(!area || !val) return alert("Заполните все текстовые поля редактирования статистики!");
+    if(document.getElementById('adm-name').value) users[email].name = document.getElementById('adm-name').value;
+    users[email].rank = document.getElementById('adm-rank').value;
+    users[email].division = document.getElementById('adm-div').value;
     
-    shootingStats[area] = val;
-    save();
-    alert("Статистика района Чикаго пересчитана!");
+    await saveToServer();
+    alert(`Звание и доступы для ${email} изменены!`);
+    if(currentUser.email === email) checkAuth();
+    else switchTab('Панель Управления');
 }
 
-function addGang() {
+async function addGang() {
     const name = document.getElementById('adm-gang').value.trim();
     const info = document.getElementById('adm-gang-info').value.trim();
-    
-    if(!name || !info) return alert("Заполните имя ОПГ и карточку информации!");
+    if(!name || !info) return alert("Заполните название и информацию о ОПГ!");
     
     gangs.push({ name, info });
-    save();
-    alert(`Криминальная банда ${name} успешно внесена в архивы GED.`);
+    await saveToServer();
+    alert("Банда успешно внесена в электронную таблицу!");
+    switchTab('Панель Управления'); 
 }
 
-function editField(field) {
-    let currentVal = currentUser[field];
-    let newVal = prompt(`Изменение данных терминала. Введите новое значение для ${field.toUpperCase()}:`, currentVal);
-    
-    if (newVal !== null && newVal.trim() !== '') {
+async function updateStats() {
+    const area = document.getElementById('adm-area').value.trim();
+    const val = document.getElementById('adm-perc').value.trim();
+    if(!area || !val) return;
+    shootingStats[area] = val;
+    await saveToServer();
+    alert("Статистика района обновлена!");
+    switchTab('Панель Управления');
+}
+
+async function deleteGang(index) {
+    if (confirm("Удалить банду из таблицы?")) {
+        gangs.splice(index, 1);
+        await saveToServer();
+        switchTab('Панель Управления');
+    }
+}
+
+async function deleteArea(areaName) {
+    if (confirm("Удалить район?")) {
+        delete shootingStats[areaName];
+        await saveToServer();
+        switchTab('Панель Управления');
+    }
+}
+
+async function editField(field) {
+    let newVal = prompt(`Новое значение для ${field.toUpperCase()}:`, currentUser[field]);
+    if (newVal) {
         currentUser[field] = newVal.trim();
         users[currentUser.email][field] = newVal.trim();
-        save();
+        await saveToServer();
         renderUI();
     }
 }
 
-function toggleStatus() {
+async function toggleStatus() {
     const statuses = ["ON DUTY", "OFF DUTY", "ON SCENE"];
-    let nextIdx = (statuses.indexOf(currentUser.status) + 1) % statuses.length;
-    
-    currentUser.status = statuses[nextIdx];
+    currentUser.status = statuses[(statuses.indexOf(currentUser.status) + 1) % statuses.length];
     users[currentUser.email].status = currentUser.status;
-    save();
+    await saveToServer();
     renderUI();
 }
 
@@ -667,305 +689,4 @@ function toBase64(file) {
         reader.onload = () => resolve(reader.result);
         reader.onerror = error => reject(error);
     });
-}
-
-function save() {
-    localStorage.setItem('cpd_v5_users', JSON.stringify(users));
-    localStorage.setItem('cpd_v5_reports', JSON.stringify(reports));
-    localStorage.setItem('cpd_v5_gangs', JSON.stringify(gangs));
-    localStorage.setItem('cpd_v5_stats', JSON.stringify(shootingStats));
-}
-
-// Удаление банды
-function deleteGang(index) {
-    if (confirm(`Вы уверены, что хотите безвозвратно удалить банду "${gangs[index].name}" из базы данных?`)) {
-        gangs.splice(index, 1);
-        save();
-        alert("Карточка ОПГ успешно удалена.");
-        switchTab('Панель Управления'); 
-    }
-}
-
-// Удаление статистики района
-function deleteArea(areaName) {
-    if (confirm(`Вы уверены, что хотите удалить район "${areaName}" из сводки по стрельбе?`)) {
-        delete shootingStats[areaName];
-        save();
-        alert("Район удален из базы данных.");
-        switchTab('Панель Управления'); 
-    }
-}
-
-// Удаление отчета из базы
-function deleteReport(reportId) {
-    if (confirm("Вы уверены, что хотите удалить данный рапорт/кейс-файл из архивов Главного Управления?")) {
-        reports = reports.filter(r => r.id !== reportId);
-        save();
-        document.getElementById('modal-view').style.display = 'none';
-        alert("Документ успешно стерт из архива.");
-        
-        const activeNav = document.querySelector('.nav-item.active');
-        if (activeNav) activeNav.click();
-    }
-}
-// ВСТАВЬТЕ СЮДА ВАШ URL ИЗ GOOGLE APPS SCRIPT
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxrma9OTF_dluLsIErDy6yQwXKQVhOvlElKiOcnlvR7gBKr7GvNawVc3PBjOgrkNcf_/exec";
-
-let usersList = []; // Список всех юзеров из таблицы
-let  reports = [];   // Список всех отчетов из таблицы
-let currentUser = JSON.parse(localStorage.getItem('cpd_v5_session')) || null;
-let currentMode = "PATROL"; 
-
-// Локальные данные, которые пока не в облаке (можно оставить так)
-let gangs = JSON.parse(localStorage.getItem('cpd_v5_gangs')) || [
-    { name: "Vice Lords", info: "Активная группировка Чикаго." },
-    { name: "18th Street Gang", info: "Многонациональная банда." }
-];
-let shootingStats = JSON.parse(localStorage.getItem('cpd_v5_stats')) || { "South Chicago": "45%", "Englewood": "58%" };
-let drafts = JSON.parse(localStorage.getItem('cpd_v5_drafts')) || {};
-
-window.onload = () => {
-    bindEvents();
-    if (currentUser) {
-        checkAuth();
-        syncData(); // Сразу грузим данные из облака
-    } else {
-        checkAuth();
-    }
-    
-    // Авто-обновление данных каждые 30 секунд
-    setInterval(() => { if(currentUser) syncData(); }, 30000);
-};
-
-// --- СЕРВЕРНЫЕ ФУНКЦИИ (API) ---
-
-async function syncData() {
-    try {
-        const response = await fetch(SCRIPT_URL + "?action=getData");
-        const data = await response.json();
-        
-        // Форматируем данные из таблицы обратно в объекты
-        usersList = data.users.map(u => ({ email: u[0], name: u[2], rank: u[3], division: u[4], unit: u[5], status: u[6] }));
-        reports = data.reports.map(r => ({
-            id: r[0], type: r[1], globalType: r[2], text: r[3],
-            author: r[4], unit: r[5], division: r[6], email: r[7], date: r[8], photos: JSON.parse(r[9] || "[]")
-        })).reverse(); // Новые сверху
-
-        // Если текущий юзер обновился в таблице (вы дали ему ранг)
-        const updatedMe = usersList.find(u => u.email === currentUser.email);
-        if (updatedMe) {
-            currentUser = { ...currentUser, ...updatedMe };
-            localStorage.setItem('cpd_v5_session', JSON.stringify(currentUser));
-        }
-        
-        renderUI();
-    } catch (e) {
-        console.error("Ошибка синхронизации:", e);
-    }
-}
-
-// ФУНКЦИЯ ЛОГИНА
-async function login() {
-    const email = document.getElementById('auth-email').value.toLowerCase().trim();
-    const pass = document.getElementById('auth-password').value;
-    const btn = document.getElementById('btn-login');
-    
-    if(!email || !pass) return alert("Введите данные!");
-    
-    btn.innerText = "ПРОВЕРКА...";
-    btn.disabled = true;
-
-    try {
-        // Используем GET для обхода CORS при чтении данных
-        const params = new URLSearchParams({
-            action: 'login',
-            email: email,
-            password: pass
-        });
-
-        const response = await fetch(`${SCRIPT_URL}?${params.toString()}`);
-        const result = await response.text();
-
-        if (result !== "fail" && result.includes("{")) {
-            currentUser = JSON.parse(result);
-            localStorage.setItem('cpd_v5_session', JSON.stringify(currentUser));
-            location.reload(); // Перезагружаем, чтобы интерфейс подхватил данные
-        } else {
-            alert("Неверный логин или пароль");
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Ошибка связи с базой. Проверьте Deployment в Google Script.");
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "Войти";
-    }
-}
-
-// Название должно быть в точности 'register'
-async function register() {
-    const emailInput = document.getElementById('auth-email');
-    const passInput = document.getElementById('auth-password');
-
-    if (!emailInput || !passInput) return console.error("Поля ввода не найдены!");
-
-    const email = emailInput.value.toLowerCase().trim();
-    const pass = passInput.value;
-
-    if (!email || !pass) return alert("Введите данные для регистрации!");
-
-    try {
-        // Отправляем данные в Google Таблицу
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({
-                action: 'register',
-                email: email,
-                password: pass,
-                name: "Офицер (" + email.split('@')[0] + ")"
-            })
-        });
-
-        alert("Заявка отправлена! Теперь попробуйте войти.");
-        location.reload(); 
-    } catch (e) {
-        console.error("Ошибка регистрации:", e);
-        alert("Ошибка сети при попытке регистрации.");
-    }
-}
-
-async function submitReport(globalType) {
-    const type = document.getElementById('report-type').value;
-    const text = document.getElementById('report-text').value;
-    
-    if (!type || !text) return alert("Заполните все поля!");
-    
-    const btn = document.querySelector('.btn-primary');
-    btn.innerText = "ОТПРАВКА...";
-    btn.disabled = true;
-
-    const reportData = {
-        action: "saveReport",
-        type, globalType, text,
-        author: currentUser.name,
-        unit: currentUser.unit,
-        division: currentUser.division,
-        email: currentUser.email,
-        photos: loadedPhotos
-    };
-
-    try {
-        await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(reportData) });
-        alert("Отчет успешно сохранен в облачной базе данных!");
-        delete drafts[currentUser.email + '_' + globalType];
-        localStorage.setItem('cpd_v5_drafts', JSON.stringify(drafts));
-        loadedPhotos = [];
-        syncData(); // Обновляем список
-        switchTab(currentMode === 'PATROL' ? 'Мои отчёты' : 'Кейс-файлы');
-    } catch (e) {
-        alert("Ошибка при отправке отчета.");
-    }
-}
-
-// --- ВСЕ ОСТАЛЬНЫЕ ФУНКЦИИ (ИНТЕРФЕЙС) ---
-// (Оставляем как в предыдущей версии, но меняем логику получения списков)
-
-function checkAuth() {
-    const authScreen = document.getElementById('auth-screen');
-    const appScreen = document.getElementById('app-screen');
-
-    if (!authScreen || !appScreen) {
-        console.error("КРИТИЧЕСКАЯ ОШИБКА: В HTML не найдены блоки 'auth-screen' или 'app-screen'!");
-        return;
-    }
-
-    if (currentUser) {
-        authScreen.style.display = 'none';
-        appScreen.style.display = 'flex';
-        renderUI();
-    } else {
-        authScreen.style.display = 'flex';
-        appScreen.style.display = 'none';
-    }
-}
-
-function renderUI() {
-    document.getElementById('disp-name').textContent = currentUser.name;
-    document.getElementById('disp-unit').textContent = currentUser.unit;
-    document.getElementById('disp-rank-div').textContent = `${currentUser.rank} / ${currentUser.division}`;
-    
-    const statusEl = document.getElementById('disp-status');
-    statusEl.textContent = currentUser.status;
-    statusEl.className = 'value status-badge ' + currentUser.status.replace(' ', '-').toLowerCase();
-
-    const hasDetAccess = currentUser.rank === "ADMIN" || currentUser.rank === "DETECTIVE" || currentUser.division === "GED";
-    document.getElementById('btn-switch-bureau').style.display = hasDetAccess ? 'block' : 'none';
-    
-    renderNav();
-}
-
-// ... (Добавьте сюда функции renderNav, switchTab, viewReport и шаблоны из предыдущего ответа) ...
-// Единственное изменение: в switchTab('Все патрульные') используйте usersList вместо Object.keys(users)
-
-function logout() { 
-    localStorage.removeItem('cpd_v5_session'); 
-    location.reload(); 
-}
-
-function bindEvents() {
-    document.getElementById('btn-login').onclick = login;
-    document.getElementById('btn-register').onclick = register;
-    document.getElementById('btn-logout').onclick = logout;
-    document.getElementById('status-toggle').onclick = () => alert("Для смены статуса, позывного или ранга обратитесь к ADMIN или измените данные в Google Таблице.");
-    document.getElementById('btn-switch-bureau').onclick = () => {
-        currentMode = currentMode === "PATROL" ? "DETECTIVE" : "PATROL"; 
-        renderUI();
-    };
-}
-async function syncData() {
-    try {
-        const response = await fetch(SCRIPT_URL + "?action=getData", {
-            method: 'GET',
-            mode: 'cors', // Добавляем этот режим
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-        });
-        
-        if (!response.ok) throw new Error('Network response was not ok');
-        
-        const data = await response.json();
-        // ... твой код обработки данных ...
-    } catch (e) {
-        console.error("CORS или ошибка сети:", e);
-    }
-}
-async function registerUser(userData) {
-    try {
-        // Отправляем запрос в "слепом" режиме (no-cors)
-        await fetch(SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Обязательно возвращаем no-cors!
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8'
-            },
-            body: JSON.stringify({
-                action: 'register',
-                ...userData
-            })
-        });
-
-        // ВАЖНО: Мы УДАЛИЛИ строку "const result = await response.json();"
-        // При no-cors браузер всё равно не даст её прочитать.
-        // Если fetch не выдал фатальную ошибку до этого момента, значит всё ок (тот самый 200 OK).
-        
-        alert("Запрос отправлен! Пользователь добавлен в базу.");
-        // Здесь можешь добавить код для закрытия окна регистрации
-        // или очистки полей ввода
-
-    } catch (error) {
-        console.error("Ошибка при отправке:", error);
-        alert("Произошла ошибка сети.");
-    }
 }
