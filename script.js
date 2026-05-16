@@ -690,40 +690,77 @@ function toBase64(file) {
         reader.onerror = error => reject(error);
     });
 }
-// Функция для смены статуса офицера
+// Полностью исправленная функция смены статуса
 function changeStatus(newStatus) {
-    // Проверяем, залогинен ли пользователь (чтобы не было ошибок)
     if (!currentUser) {
         alert("Ошибка: Вы должны авторизоваться в системе!");
         return;
     }
 
-    // 1. Меняем статус у текущего сессионного пользователя
+    // 1. Обновляем статус в оперативной памяти сессии
     currentUser.status = newStatus;
 
-    // 2. Обновляем этот же статус в общем списке пользователей (базе данных)
-    if (users && users[currentUser.username]) {
+    // 2. Обновляем статус в глобальной базе данных пользователей
+    if (window.users && window.users[currentUser.username]) {
+        window.users[currentUser.username].status = newStatus;
+    } else if (typeof users !== 'undefined' && users[currentUser.username]) {
         users[currentUser.username].status = newStatus;
-    } else {
-        // Если структура базы вдруг немного другая, подстрахуемся:
-        if (!users) users = {};
-        users[currentUser.username] = { ...currentUser };
     }
 
-    // 3. Ищем визуальный элемент статуса на странице и обновляем текст
-    // (Код проверит популярные ID, один из них точно сработает)
-    const statusText = document.getElementById('user-status-text') || document.getElementById('status-text');
-    if (statusText) {
-        statusText.textContent = newStatus;
+    // 3. БЕЗОПАСНОЕ обновление текста на странице (без вылета в ошибку)
+    // Код переберет все возможные варианты ID элементов, которые могут отвечать за статус
+    const statusTextSelectors = ['user-status-text', 'status-text', 'current-status', 'officer-status'];
+    let updatedVisual = false;
+
+    for (let id of statusTextSelectors) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = newStatus;
+            updatedVisual = true;
+            break; 
+        }
     }
 
-    console.log(`Статус успешно изменен на: ${newStatus}`);
+    // Если ни один ID не подошел, ищем элемент через класс или текст, чтобы сайт не падал
+    if (!updatedVisual) {
+        const fallbackEl = document.querySelector('.status-value') || document.querySelector('.badge-status');
+        if (fallbackEl) fallbackEl.textContent = newStatus;
+    }
 
-    // 4. Отправляем обновленную базу данных на сервер (в Google Диск)
+    console.log(`[CPD] Статус изменен на: ${newStatus}`);
+
+    // 4. Отправляем обновленную базу на Google Диск через твой рабочий saveToServer
     if (typeof saveToServer === "function") {
         saveToServer();
     }
 }
+
+// Умная привязка к кнопкам по их ID или по тексту на кнопке
+document.addEventListener("DOMContentLoaded", () => {
+    // Вариант А: Ищем кнопки по точным ID
+    const btnOnDuty = document.getElementById('btn-on-duty');
+    const btnOffDuty = document.getElementById('btn-off-duty');
+    const btnOnScene = document.getElementById('btn-on-scene');
+
+    if (btnOnDuty) btnOnDuty.addEventListener('click', () => changeStatus('On Duty'));
+    if (btnOffDuty) btnOffDuty.addEventListener('click', () => changeStatus('Off Duty'));
+    if (btnOnScene) btnOnScene.addEventListener('click', () => changeStatus('On Scene'));
+
+    // Вариант Б (Подстраховка): Если ID в HTML нет, находим кнопки просто по их тексту
+    if (!btnOnDuty || !btnOffDuty || !btnOnScene) {
+        const allButtons = document.querySelectorAll('button');
+        allButtons.forEach(button => {
+            const text = button.textContent.trim().toLowerCase();
+            if (text === 'on duty') {
+                button.addEventListener('click', () => changeStatus('On Duty'));
+            } else if (text === 'off duty') {
+                button.addEventListener('click', () => changeStatus('Off Duty'));
+            } else if (text === 'on scene') {
+                button.addEventListener('click', () => changeStatus('On Scene'));
+            }
+        });
+    }
+});
 
 // Автоматическая привязка функций к кнопкам после загрузки страницы
 document.addEventListener("DOMContentLoaded", () => {
