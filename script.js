@@ -1,5 +1,5 @@
 // ВСТАВЬ СЮДА ССЫЛКУ НА СВОЙ GOOGLE APPS SCRIPT
-const API_URL = "https://script.google.com/macros/s/AKfycbwCoF9Q7c4qd6KvapeRfEGu740FW4vB1E3bDafCnPkh3LeKPg_NcTrwiYF3GfHma_CD/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbzR9U-85MAmilJF8mvOcemHBqyVFEaMkHRf1FnSznWjIhnJng3jZQoQcmenUh1_3kVJ/exec"; 
 
 let users = {};
 let reports = [];
@@ -59,7 +59,7 @@ function bindEvents() {
 }
 
 async function fetchDatabase() {
-    if(!API_URL || API_URL.includes("https://script.google.com/macros/s/AKfycbw-QGJzNKaBtLAlWJRWNTnq7r29HuR1-F7U4mA1GeE_bJJzqvA3qJvND7c7HKbK_CwT/exec")) {
+    if(!API_URL || API_URL.includes("https://script.google.com/macros/s/AKfycbzR9U-85MAmilJF8mvOcemHBqyVFEaMkHRf1FnSznWjIhnJng3jZQoQcmenUh1_3kVJ/exec")) {
         loadLocalFallback();
         return;
     }
