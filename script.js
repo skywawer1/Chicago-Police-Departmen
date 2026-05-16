@@ -77,22 +77,40 @@ async function fetchDatabase() {
 }
 
 async function saveToServer() {
-    if(!API_URL || API_URL.includes("ТВОЙ_URL")) {
+    // Проверяем, задан ли URL скрипта Гугла
+    if (!API_URL || API_URL.includes("ТВОЙ_URL")) {
+        console.warn("[CPD] API_URL не настроен. Сохраняем локально.");
         saveLocalFallback();
         return;
     }
-    const dbState = { users, reports, gangs, shootingStats };
+
+    // Подстраховка: если переменных нет в памяти, создаем пустые структуры, чтобы не отправить null
+    const stateToSend = {
+        users: window.users || users || {},
+        reports: window.reports || reports || [],
+        gangs: window.gangs || gangs || [],
+        shootingStats: window.shootingStats || shootingStats || {}
+    };
+
     try {
-        // Отправляем данные как чистый текстовый JSON-поток (снимает лимиты на размер текста/фото)
+        console.log("[CPD] Отправка обновленных данных на сервер...", stateToSend);
+
+        // Отправляем текстовый JSON-поток на Google Apps Script
         await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors', 
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(dbState)
+            mode: 'no-cors', // Снимает проблемы с CORS-блокировками в браузере
+            headers: { 
+                'Content-Type': 'text/plain' 
+            },
+            body: JSON.stringify(stateToSend)
         });
-        saveLocalFallback();
-    } catch(e) {
-        console.error("Ошибка сохранения на сервер", e);
+
+        console.log("[CPD] Данные успешно отправлены в очередь сервера.");
+        
+        // На всякий случай дублируем в локальное хранилище браузера (куки/localStorage)
+        saveLocalFallback(); 
+    } catch (e) {
+        console.error("[CPD] Критическая ошибка при отправке на сервер:", e);
         saveLocalFallback();
     }
 }
@@ -122,18 +140,33 @@ function login() {
     }
 }
 
-async function register() {
-    const email = document.getElementById('auth-email').value.toLowerCase().trim();
-    const pass = document.getElementById('auth-password').value;
-    if (!email || !pass) return alert("Введите Email и пароль!");
-    if (users[email]) return alert("Эта почта уже зарегистрирована.");
+// НАЙДИ ПОХОЖИЙ КУСОЧЕК В СВОЁМ КОДЕ:
+function handleRegister(username, password, name, rank) {
+    if (users[username]) {
+        alert("Такой пользователь уже существует!");
+        return;
+    }
+
+    // Создаём структуру нового пользователя
+    users[username] = {
+        username: username,
+        password: password, // или хэш, если используешь
+        name: name,
+        rank: rank || "USER", // дефолтное звание
+        status: "Off Duty",       // дефолтный статус
+        badge: "",                // жетон/позывной
+        marking: ""               // маркировка патруля
+    };
+
+    alert("Регистрация успешна! Теперь вы можете войти.");
+
+    // ======= ВОТ ЭТУ СТРОКУ КРИТИЧЕСКИ ВАЖНО ДОБАВИТЬ СЮДА: =======
+    if (typeof saveToServer === "function") {
+        saveToServer();
+    }
+    // =============================================================
     
-    users[email] = { password: pass, name: "Civilian (" + email.split('@')[0] + ")", rank: "USER", division: "Unassigned", unit: "NONE", status: "OFF DUTY" };
-    await saveToServer();
-    alert("Успешная регистрация! Ваш аккаунт находится в статусе гражданского (USER). Доступ заблокирован до одобрения шефом.");
-    currentUser = { ...users[email], email: email };
-    localStorage.setItem('cpd_v5_session', JSON.stringify(currentUser));
-    checkAuth();
+    showLoginPage(); // Переключение на окно входа
 }
 
 function logout() { 
