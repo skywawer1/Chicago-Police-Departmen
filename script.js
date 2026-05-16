@@ -1,5 +1,5 @@
 // ВСТАВЬ СЮДА ССЫЛКУ НА СВОЙ GOOGLE APPS SCRIPT
-const API_URL = "https://script.google.com/macros/s/AKfycbw-QGJzNKaBtLAlWJRWNTnq7r29HuR1-F7U4mA1GeE_bJJzqvA3qJvND7c7HKbK_CwT/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbwCoF9Q7c4qd6KvapeRfEGu740FW4vB1E3bDafCnPkh3LeKPg_NcTrwiYF3GfHma_CD/exec"; 
 
 let users = {};
 let reports = [];
@@ -59,7 +59,7 @@ function bindEvents() {
 }
 
 async function fetchDatabase() {
-    if(!API_URL || API_URL.includes("ТВОЙ_URL")) {
+    if(!API_URL || API_URL.includes("https://script.google.com/macros/s/AKfycbw-QGJzNKaBtLAlWJRWNTnq7r29HuR1-F7U4mA1GeE_bJJzqvA3qJvND7c7HKbK_CwT/exec")) {
         loadLocalFallback();
         return;
     }
@@ -690,3 +690,58 @@ function toBase64(file) {
         reader.onerror = error => reject(error);
     });
 }
+// Функция для смены статуса офицера
+function changeStatus(newStatus) {
+    // Проверяем, залогинен ли пользователь (чтобы не было ошибок)
+    if (!currentUser) {
+        alert("Ошибка: Вы должны авторизоваться в системе!");
+        return;
+    }
+
+    // 1. Меняем статус у текущего сессионного пользователя
+    currentUser.status = newStatus;
+
+    // 2. Обновляем этот же статус в общем списке пользователей (базе данных)
+    if (users && users[currentUser.username]) {
+        users[currentUser.username].status = newStatus;
+    } else {
+        // Если структура базы вдруг немного другая, подстрахуемся:
+        if (!users) users = {};
+        users[currentUser.username] = { ...currentUser };
+    }
+
+    // 3. Ищем визуальный элемент статуса на странице и обновляем текст
+    // (Код проверит популярные ID, один из них точно сработает)
+    const statusText = document.getElementById('user-status-text') || document.getElementById('status-text');
+    if (statusText) {
+        statusText.textContent = newStatus;
+    }
+
+    console.log(`Статус успешно изменен на: ${newStatus}`);
+
+    // 4. Отправляем обновленную базу данных на сервер (в Google Диск)
+    if (typeof saveToServer === "function") {
+        saveToServer();
+    }
+}
+
+// Автоматическая привязка функций к кнопкам после загрузки страницы
+document.addEventListener("DOMContentLoaded", () => {
+    // Привязка для кнопки ON DUTY
+    const btnOnDuty = document.getElementById('btn-on-duty') || document.querySelector('.btn-success');
+    if (btnOnDuty) {
+        btnOnDuty.addEventListener('click', () => changeStatus('On Duty'));
+    }
+
+    // Привязка для кнопки OFF DUTY
+    const btnOffDuty = document.getElementById('btn-off-duty') || document.querySelector('.btn-danger');
+    if (btnOffDuty) {
+        btnOffDuty.addEventListener('click', () => changeStatus('Off Duty'));
+    }
+
+    // Привязка для кнопки ON SCENE
+    const btnOnScene = document.getElementById('btn-on-scene') || document.querySelector('.btn-warning');
+    if (btnOnScene) {
+        btnOnScene.addEventListener('click', () => changeStatus('On Scene'));
+    }
+});
