@@ -163,10 +163,29 @@ function renderNav() {
         if (currentMode === "PATROL") {
             menu.push('Новый отчёт', 'Мои отчёты', 'Все отчёты', 'Все патрульные', 'Законодательство', 'Статистика');
         } else {
-            menu.push('Кейс-файлы', 'Активные банды', 'Сотрудники ГЕД', 'Статистика районов');
+            // Вкладка Кейс-файлы и новая JSA Liaison
+            menu.push('Кейс-файлы', 'Активные банды', 'Сотрудники ГЕД', 'Статистика районов', 'JSA Liaison');
         }
         if (currentUser.rank === "ADMIN") menu.push('Панель Управления');
     }
+
+    menu.forEach(item => {
+        const a = document.createElement('a');
+        a.className = 'nav-item';
+        a.textContent = item;
+        a.onclick = () => {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            a.classList.add('active');
+            switchTab(item);
+        };
+        nav.appendChild(a);
+    });
+
+    if(nav.firstChild) {
+        nav.firstChild.classList.add('active');
+        switchTab(menu[0]);
+    }
+}
 
     menu.forEach(item => {
         const a = document.createElement('a');
@@ -229,7 +248,6 @@ function switchTab(tab) {
         renderReportTable(container, list);
     }
     else if (tab === 'Все патрульные') {
-        // ИСПРАВЛЕННЫЙ ФИЛЬТР: Теперь показывает всех, у кого ранг PO, SERGEANT, DETECTIVE или ADMIN
         const patrolStaff = Object.values(users).filter(u => u.rank === "PO" || u.rank === "SERGEANT" || u.rank === "DETECTIVE" || u.rank === "ADMIN");
         
         container.innerHTML += `<div class="staff-grid">`;
@@ -311,6 +329,18 @@ function switchTab(tab) {
                 </div>`;
         });
         container.innerHTML += `</div>`;
+    }
+    else if (tab === 'JSA Liaison') {
+        container.innerHTML += `
+            <div class="form-box">
+                <h3 style="color:var(--accent-blue);">СВЯЗЬ С СУДЕБНОЙ СИСТЕМОЙ (JSA LIAISON)</h3>
+                <p style="color:var(--text-gray); margin-bottom: 15px;">Здесь вы можете оформлять ордера, передавать дела в суд и взаимодействовать с прокуратурой.</p>
+                <textarea id="jsa-request-text" class="report-area" style="height: 200px;" placeholder="Опишите ваш запрос, ордер или прикрепите материалы для прокуратуры..."></textarea>
+                <div class="actions">
+                    <button onclick="alert('Запрос отправлен в прокуратуру (Функция в разработке)')" class="btn-primary">ОТПРАВИТЬ ЗАПРОС</button>
+                </div>
+            </div>
+        `;
     }
     else if (tab === 'Панель Управления') {
         renderAdminPanel(container);
@@ -412,20 +442,44 @@ function viewReport(id) {
     if(!r) return;
     const m = document.getElementById('modal-view');
     m.style.display = 'flex';
+    
     let photoHtml = r.photos && r.photos.length ? r.photos.map(p => `<img src="${p}" class="report-photo" onclick="window.open(this.src)">`).join('') : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
     
-    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 8px 15px; font-size: 14px;">УДАЛИТЬ ОТЧЕТ ИЗ БАЗЫ</button>` : '';
+    // Кнопки управления доступом
+    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">УДАЛИТЬ</button>` : '';
+    let canEdit = currentUser.email === r.email || currentUser.rank === "ADMIN" || currentUser.division === "GED" || currentUser.rank === "DETECTIVE";
     
+    let editBtns = canEdit ? `
+        <button onclick="editReportText('${r.id}')" class="btn-secondary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">РЕДАКТИРОВАТЬ</button>
+        <button onclick="addReportNote('${r.id}')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">+ ЗАМЕТКА</button>
+    ` : '';
+
+    // Отрисовка заметок
+    let notesHtml = '';
+    if (r.notes && r.notes.length > 0) {
+        notesHtml = `<h3 style="margin-top:20px; margin-bottom:10px; color:#f59e0b;">СЛУЖЕБНЫЕ ЗАМЕТКИ:</h3>`;
+        r.notes.forEach(note => {
+            notesHtml += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 13px;">
+                <strong style="color:#f59e0b;">${note.author} (${note.date}):</strong><br>${note.text}
+            </div>`;
+        });
+    }
+
     document.getElementById('modal-body').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
             <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${r.type.toUpperCase()}</h1>
-            <div style="display:flex; gap:15px; align-items:center;">
-                ${adminBtn}
+            <div style="display:flex; align-items:center;">
                 <span style="color:var(--text-gray); font-size:14px;">${r.date}</span>
+                ${editBtns}
+                ${adminBtn}
             </div>
         </div>
-        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${r.author} [${r.unit}] | <strong>ДИВИЗИОН:</strong> ${r.division} (${r.email})</p>
+        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${r.author} [${r.unit}] | <strong>ДИВИЗИОН:</strong> ${r.division}</p>
+        
         <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
+        
+        ${notesHtml}
+
         <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
         <div class="report-photos-grid">${photoHtml}</div>
     `;
@@ -636,4 +690,50 @@ function addLaw() {
         document.getElementById('adm-law-title').value = '';
         document.getElementById('adm-law-text').value = '';
     });
+}
+function editReportText(id) {
+    const r = reports.find(rep => rep.id === id);
+    if(!r) return;
+    
+    document.getElementById('modal-body').innerHTML = `
+        <h2 style="color:var(--accent-blue); margin-bottom: 15px;">РЕДАКТИРОВАНИЕ ДОКУМЕНТА</h2>
+        <textarea id="edit-report-area" class="report-area" style="height: 400px; width: 100%; font-family:monospace; font-size:14px;">${r.text}</textarea>
+        <div class="actions" style="margin-top: 15px;">
+            <button onclick="saveEditedReport('${id}')" class="btn-primary">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
+            <button onclick="viewReport('${id}')" class="btn-secondary">ОТМЕНА</button>
+        </div>
+    `;
+}
+
+function saveEditedReport(id) {
+    const newText = document.getElementById('edit-report-area').value;
+    db.collection('reports').doc(id).update({
+        text: newText
+    }).then(() => {
+        alert("Документ успешно обновлен!");
+        viewReport(id); 
+    }).catch(err => alert("Ошибка: " + err.message));
+}
+
+function addReportNote(id) {
+    const r = reports.find(rep => rep.id === id);
+    if(!r) return;
+
+    const noteText = prompt("Введите текст служебной заметки (ордера, комментарии, обновления по делу):");
+    if(noteText !== null && noteText.trim() !== "") {
+        const newNote = {
+            author: currentUser.name,
+            date: new Date().toLocaleString(),
+            text: noteText.trim()
+        };
+        
+        let currentNotes = r.notes || [];
+        currentNotes.push(newNote);
+        
+        db.collection('reports').doc(id).update({
+            notes: currentNotes
+        }).then(() => {
+            viewReport(id); 
+        }).catch(err => alert("Ошибка добавления заметки: " + err.message));
+    }
 }
