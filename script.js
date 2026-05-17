@@ -75,7 +75,9 @@ function setupFirebaseListeners() {
 
     db.collection('users').onSnapshot(snap => {
         users = {};
-        snap.docs.forEach(d => users[d.id] = d.data());
+        snap.docs.forEach(d => {
+            users[d.id] = d.data();
+        });
         refreshUI();
     });
 
@@ -134,13 +136,14 @@ function checkAuth() {
 }
 
 function renderUI() {
-    document.getElementById('disp-name').textContent = currentUser.name;
-    document.getElementById('disp-unit').textContent = currentUser.unit;
-    document.getElementById('disp-rank-div').textContent = `${currentUser.rank} / ${currentUser.division}`;
+    document.getElementById('disp-name').textContent = currentUser.name || "Без имени";
+    document.getElementById('disp-unit').textContent = currentUser.unit || "NONE";
+    document.getElementById('disp-rank-div').textContent = `${currentUser.rank || "USER"} / ${currentUser.division || "Unassigned"}`;
     
+    const statusVal = currentUser.status || "OFF DUTY";
     const statusEl = document.getElementById('disp-status');
-    statusEl.textContent = currentUser.status;
-    statusEl.className = 'value status-badge ' + currentUser.status.replace(' ', '-').toLowerCase();
+    statusEl.textContent = statusVal;
+    statusEl.className = 'value status-badge ' + statusVal.replace(' ', '-').toLowerCase();
     
     const hasDetAccess = currentUser.rank === "ADMIN" || currentUser.rank === "DETECTIVE" || currentUser.division === "GED"; 
     const bureauBtn = document.getElementById('btn-switch-bureau');
@@ -230,12 +233,13 @@ function switchTab(tab) {
         
         container.innerHTML += `<div class="staff-grid">`;
         patrolStaff.forEach(d => {
+            const userStatus = d.status || "OFF DUTY";
             container.innerHTML += `
                 <div class="staff-card">
-                    <h3>${d.name}</h3>
-                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank}</p>
-                    <p style="font-size:12px; color:var(--text-gray);">${d.division} | Маркировка: ${d.unit}</p>
-                    <span class="status-badge ${d.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${d.status}</span>
+                    <h3>${d.name || "Без имени"}</h3>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank || "PO"}</p>
+                    <p style="font-size:12px; color:var(--text-gray);">${d.division || "Patrol Division"} | Маркировка: ${d.unit || "NONE"}</p>
+                    <span class="status-badge ${userStatus.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${userStatus}</span>
                 </div>`;
         });
         container.innerHTML += `</div>`;
@@ -258,9 +262,9 @@ function switchTab(tab) {
         activeUsers.forEach(u => {
             container.innerHTML += `
                 <div class="stat-card">
-                    <h3>${u.name}</h3>
-                    <p>Позывной: <strong>${u.unit}</strong></p>
-                    <p>Дивизион: <strong>${u.division}</strong></p>
+                    <h3>${u.name || "Без имени"}</h3>
+                    <p>Позывной: <strong>${u.unit || "NONE"}</strong></p>
+                    <p>Дивизион: <strong>${u.division || "Unassigned"}</strong></p>
                     <p style="margin-top:10px; color:var(--accent-blue);">Всего отчетов: <span style="font-size:20px; font-weight:bold;">${u.count}</span></p>
                 </div>`;
         });
@@ -273,7 +277,7 @@ function switchTab(tab) {
         container.innerHTML += `<h3 style="color:var(--accent-blue); margin-bottom:10px;">АКТИВНОСТЬ ДЕТЕКТИВОВ</h3><div class="stat-grid" style="margin-bottom: 30px;">`; 
         for(let email in users) {
             if(users[email].rank === "DETECTIVE" || users[email].division === "GED" || users[email].rank === "ADMIN") {
-                container.innerHTML += `<div class="stat-card"><strong>${users[email].name}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
+                container.innerHTML += `<div class="stat-card"><strong>${users[email].name || "Без имени"}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
             }
         }
         
@@ -298,12 +302,13 @@ function switchTab(tab) {
         const dets = Object.values(users).filter(u => u.division === "GED" || u.rank === "DETECTIVE" || u.rank === "ADMIN");
         container.innerHTML += `<div class="staff-grid">`;
         dets.forEach(d => {
+            const userStatus = d.status || "OFF DUTY";
             container.innerHTML += `
                 <div class="staff-card">
-                    <h3>${d.name}</h3>
-                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank}</p>
-                    <p style="font-size:12px; color:var(--text-gray);">${d.division} | Маркировка: ${d.unit}</p>
-                    <span class="status-badge ${d.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${d.status}</span>
+                    <h3>${d.name || "Без имени"}</h3>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank || "DETECTIVE"}</p>
+                    <p style="font-size:12px; color:var(--text-gray);">${d.division || "GED"} | Маркировка: ${d.unit || "NONE"}</p>
+                    <span class="status-badge ${userStatus.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${userStatus}</span>
                 </div>`;
         });
         container.innerHTML += `</div>`;
@@ -317,8 +322,7 @@ function switchTab(tab) {
                 <div class="actions">
                     <button onclick="alert('Запрос отправлен в прокуратуру (Функция в разработке)')" class="btn-primary">ОТПРАВИТЬ ЗАПРОС</button>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
     else if (tab === 'Панель Управления') {
         renderAdminPanel(container);
@@ -336,14 +340,13 @@ function renderReportTable(container, list) {
     list.forEach(r => {
         table += `<tr onclick="viewReport('${r.id}')">
                 <td style="color:var(--accent-blue); font-weight:bold;">${r.type.toUpperCase()}</td>
-                <td>${r.date}</td><td>${r.author}</td><td>${r.unit}</td><td>${r.division}</td>
+                <td>${r.date}</td><td>${r.author || "Неизвестно"}</td><td>${r.unit || "NONE"}</td><td>${r.division || "Unassigned"}</td>
             </tr>`; 
     });
     table += `</tbody></table>`;
     container.innerHTML += table;
 }
 
-// Показ документов, добавление заметок и кнопка Редактировать
 function viewReport(id) {
     const r = reports.find(rep => rep.id === id);
     if(!r) return;
@@ -379,12 +382,11 @@ function viewReport(id) {
                 ${adminBtn}
             </div>
         </div>
-        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${r.author} [${r.unit}] | <strong>ДИВИЗИОН:</strong> ${r.division}</p>
+        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${r.author || "Неизвестно"} [${r.unit || "NONE"}] | <strong>ДИВИЗИОН:</strong> ${r.division || "Unassigned"}</p>
         <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
         ${notesHtml}
         <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
-        <div class="report-photos-grid">${photoHtml}</div>
-    `;
+        <div class="report-photos-grid">${photoHtml}</div>`;
 }
 
 function editReportText(id) {
@@ -397,8 +399,7 @@ function editReportText(id) {
         <div class="actions" style="margin-top: 15px;">
             <button onclick="saveEditedReport('${id}')" class="btn-primary">СОХРАНИТЬ ИЗМЕНЕНИЯ</button>
             <button onclick="viewReport('${id}')" class="btn-secondary">ОТМЕНА</button>
-        </div>
-    `;
+        </div>`;
 }
 
 function saveEditedReport(id) {
@@ -415,7 +416,7 @@ function addReportNote(id) {
 
     const noteText = prompt("Введите служебную заметку:");
     if(noteText !== null && noteText.trim() !== "") {
-        const newNote = { author: currentUser.name, date: new Date().toLocaleString(), text: noteText.trim() };
+        const newNote = { author: currentUser.name || "Аноним", date: new Date().toLocaleString(), text: noteText.trim() };
         let currentNotes = r.notes || [];
         currentNotes.push(newNote);
         
@@ -479,9 +480,9 @@ function submitReport(globalType) {
         type: type,
         globalType: globalType,
         text: text,
-        author: currentUser.name,
-        unit: currentUser.unit,
-        division: currentUser.division,
+        author: currentUser.name || "Без имени",
+        unit: currentUser.unit || "NONE",
+        division: currentUser.division || "Unassigned",
         email: currentUser.email,
         date: new Date().toLocaleString(),
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -546,7 +547,7 @@ function renderAdminPanel(container) {
                 <h3>ДОБАВЛЕНИЕ НОВОЙ ОПГ</h3>
                 <input id="adm-gang" class="input-field" placeholder="Название ОПГ">
                 <textarea id="adm-gang-info" class="input-field" style="height:120px;" placeholder="Информация о банде..."></textarea>
-                <input id="adm-gang-photos" class="input-field" placeholder="Ссылки на фото (через запятую)">
+                <input id="adm-gang-photos" class="input-field" placeholder="Ссылки на photo (через запятую)">
                 <button onclick="addGang()" class="btn-primary" style="width:100%">ДОБАВИТЬ В БАЗУ ДАННЫХ</button>
             </div>
 
@@ -572,15 +573,16 @@ function renderAdminPanel(container) {
                 <div><h4 style="font-size:13px; margin-bottom:10px;">Активные банды:</h4><div id="adm-delete-gangs-list" style="display:flex; flex-direction:column; gap:5px;"></div></div>
                 <div><h4 style="font-size:13px; margin-bottom:10px;">Статистика районов:</h4><div id="adm-delete-areas-list" style="display:flex; flex-direction:column; gap:5px;"></div></div>
             </div>
-        </div>
-    `;
+        </div>`;
     
     const gangList = document.getElementById('adm-delete-gangs-list');
+    gangList.innerHTML = '';
     gangs.forEach(g => {
         gangList.innerHTML += `<div class="delete-item-row"><span>${g.name}</span> <button onclick="deleteGang('${g.id}')" class="btn-delete-action">УДАЛИТЬ</button></div>`;
     });
 
     const areaList = document.getElementById('adm-delete-areas-list');
+    areaList.innerHTML = '';
     for (let area in shootingStats) {
         areaList.innerHTML += `<div class="delete-item-row"><span>${area} (${shootingStats[area]})</span> <button onclick="deleteArea('${area}')" class="btn-delete-action">УДАЛИТЬ</button></div>`;
     }
@@ -630,7 +632,7 @@ function addGang() {
 }
 
 function editField(field) {
-    let currentVal = currentUser[field];
+    let currentVal = currentUser[field] || '';
     let newVal = prompt(`Новое значение для ${field.toUpperCase()}:`, currentVal);
     if (newVal !== null && newVal.trim() !== '') {
         let updates = {};
@@ -641,7 +643,8 @@ function editField(field) {
 
 function toggleStatus() {
     const statuses = ["ON DUTY", "OFF DUTY", "ON SCENE"];
-    let nextIdx = (statuses.indexOf(currentUser.status) + 1) % statuses.length;
+    const currentStatus = currentUser.status || "OFF DUTY";
+    let nextIdx = (statuses.indexOf(currentStatus) + 1) % statuses.length;
     db.collection('users').doc(currentUser.email).update({status: statuses[nextIdx]});
 }
 
@@ -659,12 +662,14 @@ function toBase64(file) {
     });
 }
 
+// Функции удаления
 function deleteGang(id) {
     if (confirm(`Удалить банду?`)) {
         db.collection('gangs').doc(id).delete().then(() => switchTab('Панель Управления'));
     }
 }
 
+// Исправлено: корректное удаление поля из Firestore через firebase.firestore.FieldValue.delete()
 function deleteArea(areaName) {
     if (confirm(`Удалить район "${areaName}"?`)) {
         let updates = {};
