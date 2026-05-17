@@ -19,14 +19,13 @@ let users = {};
 let reports = [];
 let gangs = [];
 let shootingStats = {};
-let drafts = JSON.parse(localStorage.getItem('cpd_v5_drafts')) || {}; // Черновики остаются локально 
+let drafts = JSON.parse(localStorage.getItem('cpd_v5_drafts')) || {};
+// Черновики остаются локально 
 let currentUser = null;
 let currentMode = "PATROL"; 
 let loadedPhotos = [];
-
 // Настоящая база данных законов Чикаго (расширенная) 
 let chicagoLaws = [];
-
 
 // Точные шаблоны отчетов по запросу 
 const TEMPLATES = {
@@ -70,10 +69,10 @@ function setupFirebaseListeners() {
             checkAuth();
         }
         db.collection('laws').onSnapshot(snap => {
-        chicagoLaws = snap.docs.map(d => ({id: d.id, ...d.data()}));
-        chicagoLaws.sort((a, b) => a.code.localeCompare(b.code)); // Сортируем по номеру статьи
-        refreshUI();
-    });
+            chicagoLaws = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            chicagoLaws.sort((a, b) => a.code.localeCompare(b.code)); // Сортируем по номеру статьи
+            refreshUI();
+        });
     });
 
     db.collection('users').onSnapshot(snap => {
@@ -140,15 +139,15 @@ function renderUI() {
     document.getElementById('disp-name').textContent = currentUser.name;
     document.getElementById('disp-unit').textContent = currentUser.unit;
     document.getElementById('disp-rank-div').textContent = `${currentUser.rank} / ${currentUser.division}`;
+    
     const statusEl = document.getElementById('disp-status');
     statusEl.textContent = currentUser.status;
     statusEl.className = 'value status-badge ' + currentUser.status.replace(' ', '-').toLowerCase();
-
+    
     const hasDetAccess = currentUser.rank === "ADMIN" || currentUser.rank === "DETECTIVE" || currentUser.division === "GED"; 
     const bureauBtn = document.getElementById('btn-switch-bureau');
     bureauBtn.style.display = hasDetAccess ? 'block' : 'none';
-    bureauBtn.textContent = currentMode === "PATROL" ? "DETECTIVE BUREAU ⮂" : "PATROL DIVISION ⮂"; 
-    
+    bureauBtn.textContent = currentMode === "PATROL" ? "DETECTIVE BUREAU ⮂" : "PATROL DIVISION ⮂";
     renderNav();
 }
 
@@ -162,9 +161,9 @@ function renderNav() {
         menu.push('Ожидание одобрения');
     } else {
         if (currentMode === "PATROL") {
-            menu.push('Новый отчёт', 'Мои отчёты', 'Все отчёты', 'Все патрульные', 'Законодательство', 'Статистика'); 
+            menu.push('Новый отчёт', 'Мои отчёты', 'Все отчёты', 'Все патрульные', 'Законодательство', 'Статистика');
         } else {
-            menu.push('Кейс-файлы', 'Активные банды', 'Сотрудники ГЕД', 'Статистика районов'); 
+            menu.push('Кейс-файлы', 'Активные банды', 'Сотрудники ГЕД', 'Статистика районов');
         }
         if (currentUser.rank === "ADMIN") menu.push('Панель Управления');
     }
@@ -190,16 +189,16 @@ function renderNav() {
 function switchTab(tab) {
     const container = document.getElementById('tab-container');
     container.innerHTML = `<h2 class="tab-title">${tab.toUpperCase()}</h2>`;
-
+    
     if (tab === 'Ожидание одобрения') {
         container.innerHTML += `<p class="empty-text">Вы успешно зарегистрированы в системе CPD. Обратитесь к шефу/администратору для привязки ранга к почте: <strong>${currentUser.email}</strong>.</p>`; 
     }
-     else if (tab === 'Новый отчёт' || tab === 'Кейс-файлы') {
+    else if (tab === 'Новый отчёт' || tab === 'Кейс-файлы') {
         let isCase = (tab === 'Кейс-файлы');
         let options = !isCase ? 
             `<option value="incident">РАПОРТ ОБ ИНЦИДЕНТЕ</option><option value="accident">ОТЧЕТ О ПРОИСШЕСТВИИ</option>` :  
             `<option value="casefile">CASE FILE — DETECTIVE DIVISION</option>`;
-        
+            
         container.innerHTML += `
             <div class="form-box">
                 <select id="report-type" class="input-field" onchange="applyTemplate()">
@@ -226,11 +225,13 @@ function switchTab(tab) {
     else if (tab === 'Мои отчёты' || tab === 'Все отчёты') {
         let list = reports;
         if (tab === 'Мои отчёты') list = reports.filter(r => r.email === currentUser.email); 
-        else list = reports.filter(r => r.globalType === 'patrol'); 
+        else list = reports.filter(r => r.globalType === 'patrol');
         renderReportTable(container, list);
     }
     else if (tab === 'Все патрульные') {
-        const patrolStaff = Object.values(users).filter(u => u.rank !== "USER" && u.rank !== "ADMIN" && u.division !== "GED"); 
+        // ИСПРАВЛЕННЫЙ ФИЛЬТР: Теперь показывает всех, у кого ранг PO, SERGEANT, DETECTIVE или ADMIN
+        const patrolStaff = Object.values(users).filter(u => u.rank === "PO" || u.rank === "SERGEANT" || u.rank === "DETECTIVE" || u.rank === "ADMIN");
+        
         container.innerHTML += `<div class="staff-grid">`;
         patrolStaff.forEach(d => {
             container.innerHTML += `
@@ -246,7 +247,7 @@ function switchTab(tab) {
     else if (tab === 'Законодательство') {
         container.innerHTML += `
             <input type="text" id="law-search" class="input-field" placeholder="Поиск по статьям и названиям законов..." onkeyup="filterLaws()" style="margin-bottom: 20px;">
-            <div id="laws-container" class="stat-grid"></div>`; 
+            <div id="laws-container" class="stat-grid"></div>`;
         renderLaws(chicagoLaws);
     }
     else if (tab === 'Статистика') {
@@ -255,7 +256,7 @@ function switchTab(tab) {
         let activeUsers = Object.keys(users)
             .filter(email => users[email].rank !== "USER")
             .map(email => ({ email, ...users[email], count: stats[email] || 0 }))
-            .sort((a, b) => b.count - a.count); 
+            .sort((a, b) => b.count - a.count);
             
         container.innerHTML += `<div class="stat-grid">`;
         activeUsers.forEach(u => {
@@ -279,6 +280,7 @@ function switchTab(tab) {
                 container.innerHTML += `<div class="stat-card"><strong>${users[email].name}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
             }
         }
+        
         container.innerHTML += `</div><hr style="border-color:var(--border); margin-bottom:20px;"><h3>СПИСОК ОПГ ЧИКАГО</h3><div class="gang-grid" id="gang-container"></div>`;
         const gCont = document.getElementById('gang-container');
         gangs.forEach(g => {
@@ -348,7 +350,7 @@ function renderLaws(lawsArray) {
 
 function filterLaws() {
     const query = document.getElementById('law-search').value.toLowerCase();
-    const filtered = chicagoLaws.filter(l => l.title.toLowerCase().includes(query) || l.code.includes(query) || l.text.toLowerCase().includes(query)); 
+    const filtered = chicagoLaws.filter(l => l.title.toLowerCase().includes(query) || l.code.includes(query) || l.text.toLowerCase().includes(query));
     renderLaws(filtered);
 }
 
@@ -375,7 +377,7 @@ function saveDraft() {
     if(!text) return alert("Нечего сохранять в черновик.");
     drafts[currentUser.email + '_' + type] = text;
     localStorage.setItem('cpd_v5_drafts', JSON.stringify(drafts));
-    alert("Ваш отчет успешно записан в черновик!");  
+    alert("Ваш отчет успешно записан в черновик!");
 }
 
 function submitReport(globalType) {
@@ -395,7 +397,7 @@ function submitReport(globalType) {
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         photos: [...loadedPhotos]
     };
-
+    
     db.collection('reports').add(reportData).then(() => {
         delete drafts[currentUser.email + '_' + globalType];
         localStorage.setItem('cpd_v5_drafts', JSON.stringify(drafts));
@@ -412,7 +414,7 @@ function viewReport(id) {
     m.style.display = 'flex';
     let photoHtml = r.photos && r.photos.length ? r.photos.map(p => `<img src="${p}" class="report-photo" onclick="window.open(this.src)">`).join('') : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
     
-    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 8px 15px; font-size: 14px;">УДАЛИТЬ ОТЧЕТ ИЗ БАЗЫ</button>` : ''; 
+    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 8px 15px; font-size: 14px;">УДАЛИТЬ ОТЧЕТ ИЗ БАЗЫ</button>` : '';
     
     document.getElementById('modal-body').innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
@@ -442,7 +444,6 @@ function viewGang(g) {
     const m = document.getElementById('modal-view');
     m.style.display = 'flex';
     
-    // Новое: собираем фотки банды в сетку
     let photosHtml = '';
     if (g.photos && g.photos.length > 0) {
         photosHtml = `<h3 style="margin-top:20px; color:var(--accent-blue);">ФОТО МАТЕРИАЛЫ:</h3>
@@ -498,12 +499,12 @@ function renderAdminPanel(container) {
         </div>
       
         <div class="form-box admin-box">
-    <h3>ДОБАВЛЕНИЕ ЗАКОНА</h3>
-    <input id="adm-law-code" class="input-field" placeholder="Статья (например, 1.01)">
-    <input id="adm-law-title" class="input-field" placeholder="Название (например, Убийство)">
-    <textarea id="adm-law-text" class="input-field" style="height:60px;" placeholder="Описание закона..."></textarea>
-    <button onclick="addLaw()" class="btn-primary" style="width:100%; margin-top:10px;">ОПУБЛИКОВАТЬ ЗАКОН</button>
-</div>
+            <h3>ДОБАВЛЕНИЕ ЗАКОНА</h3>
+            <input id="adm-law-code" class="input-field" placeholder="Статья (например, 1.01)">
+            <input id="adm-law-title" class="input-field" placeholder="Название (например, Убийство)">
+            <textarea id="adm-law-text" class="input-field" style="height:60px;" placeholder="Описание закона..."></textarea>
+            <button onclick="addLaw()" class="btn-primary" style="width:100%; margin-top:10px;">ОПУБЛИКОВАТЬ ЗАКОН</button>
+        </div>
 
         <div class="form-box admin-box" style="max-width: 100%; margin-top: 20px; border-color: var(--danger);">
             <h3 style="color: var(--danger);">УПРАВЛЕНИЕ УДАЛЕНИЕМ ДАННЫХ (БАНДЫ И РАЙОНЫ)</h3>
@@ -512,11 +513,8 @@ function renderAdminPanel(container) {
                 <div><h4 style="font-size:13px; margin-bottom:10px;">Статистика районов:</h4><div id="adm-delete-areas-list" style="display:flex; flex-direction:column; gap:5px;"></div></div>
             </div>
         </div>
-       `;
+    `;
     
-    
-   
-
     const gangList = document.getElementById('adm-delete-gangs-list');
     gangs.forEach(g => {
         gangList.innerHTML += `<div class="delete-item-row"><span>${g.name}</span> <button onclick="deleteGang('${g.id}')" class="btn-delete-action">УДАЛИТЬ</button></div>`;
@@ -535,9 +533,10 @@ function updateUser() {
     const div = document.getElementById('adm-div').value;
 
     if (!email) return alert("Введите Email сотрудника!");
+    
     let updates = { rank: rank, division: div };
     if (name) updates.name = name;
-
+    
     db.collection('users').doc(email).update(updates).then(() => {
         alert(`Права обновлены! Ранг: ${rank}, Отдел: ${div}`); 
     }).catch(e => alert("Ошибка! Юзер не найден или нет прав."));
@@ -546,39 +545,33 @@ function updateUser() {
 function updateStats() {
     const area = document.getElementById('adm-area').value.trim();
     const val = document.getElementById('adm-perc').value.trim();
+    
     if(!area || !val) return alert("Заполните все поля!");
     
     let updates = {};
     updates[area] = val;
-    db.collection('stats').doc('shooting').set(updates, {merge: true}).then(() => alert("Статистика пересчитана!")); 
+    db.collection('stats').doc('shooting').set(updates, {merge: true}).then(() => alert("Статистика пересчитана!"));
 }
 
 function addGang() {
-    // 1. Сначала просто находим элементы (БЕЗ .value)
     const nameEl = document.getElementById('adm-gang');
     const infoEl = document.getElementById('adm-gang-info');
     const photosEl = document.getElementById('adm-gang-photos');
 
-    // 2. ЗАЩИТА: Если админка еще не отрендерилась, просто выходим и не ломаем сайт
     if (!nameEl || !infoEl) {
         console.warn("Поля ОПГ еще не отрисованы на экране.");
         return;
     }
 
-    // 3. Если они есть — спокойно берем значения
     const name = nameEl.value.trim();
     const info = infoEl.value.trim();
-    
-    // Безопасное чтение фоток
     const photosInput = photosEl ? photosEl.value.trim() : '';
     const photos = photosInput ? photosInput.split(',').map(url => url.trim()) : [];
 
     if(!name || !info) return alert("Заполните имя и карточку банды!");
     
-    // 4. Отправляем в базу
     db.collection('gangs').add({ name: name, info: info, photos: photos }).then(() => {
         alert(`Банда ${name} внесена в архивы.`);
-        // Очищаем поля
         nameEl.value = '';
         infoEl.value = '';
         if(photosEl) photosEl.value = '';
@@ -588,6 +581,7 @@ function addGang() {
 function editField(field) {
     let currentVal = currentUser[field];
     let newVal = prompt(`Новое значение для ${field.toUpperCase()}:`, currentVal);
+    
     if (newVal !== null && newVal.trim() !== '') {
         let updates = {};
         updates[field] = newVal.trim();
@@ -598,7 +592,7 @@ function editField(field) {
 function toggleStatus() {
     const statuses = ["ON DUTY", "OFF DUTY", "ON SCENE"];
     let nextIdx = (statuses.indexOf(currentUser.status) + 1) % statuses.length;
-    db.collection('users').doc(currentUser.email).update({status: statuses[nextIdx]}); 
+    db.collection('users').doc(currentUser.email).update({status: statuses[nextIdx]});
 }
 
 function switchMode() { 
@@ -628,13 +622,14 @@ function deleteArea(areaName) {
         db.collection('stats').doc('shooting').update(updates).then(() => switchTab('Панель Управления'));
     }
 }
+
 function addLaw() {
     const code = document.getElementById('adm-law-code').value.trim();
     const title = document.getElementById('adm-law-title').value.trim();
     const text = document.getElementById('adm-law-text').value.trim();
 
     if(!code || !title || !text) return alert("Заполните все поля закона!");
-
+    
     db.collection('laws').add({ code, title, text }).then(() => {
         alert(`Закон ${code} успешно добавлен.`);
         document.getElementById('adm-law-code').value = '';
