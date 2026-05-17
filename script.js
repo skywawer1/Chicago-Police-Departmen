@@ -554,17 +554,35 @@ function updateStats() {
 }
 
 function addGang() {
-    const name = document.getElementById('adm-gang').value.trim();
-    const info = document.getElementById('adm-gang-info').value.trim();
-    // Новое: получаем фотки
-    const photosInput = document.getElementById('adm-gang-photos') ? document.getElementById('adm-gang-photos').value.trim() : '';
+    // 1. Сначала просто находим элементы (БЕЗ .value)
+    const nameEl = document.getElementById('adm-gang');
+    const infoEl = document.getElementById('adm-gang-info');
+    const photosEl = document.getElementById('adm-gang-photos');
+
+    // 2. ЗАЩИТА: Если админка еще не отрендерилась, просто выходим и не ломаем сайт
+    if (!nameEl || !infoEl) {
+        console.warn("Поля ОПГ еще не отрисованы на экране.");
+        return;
+    }
+
+    // 3. Если они есть — спокойно берем значения
+    const name = nameEl.value.trim();
+    const info = infoEl.value.trim();
+    
+    // Безопасное чтение фоток
+    const photosInput = photosEl ? photosEl.value.trim() : '';
     const photos = photosInput ? photosInput.split(',').map(url => url.trim()) : [];
 
-    if(!name || !info) return alert("Заполните имя и карточку!");
+    if(!name || !info) return alert("Заполните имя и карточку банды!");
     
+    // 4. Отправляем в базу
     db.collection('gangs').add({ name: name, info: info, photos: photos }).then(() => {
         alert(`Банда ${name} внесена в архивы.`);
-    });
+        // Очищаем поля
+        nameEl.value = '';
+        infoEl.value = '';
+        if(photosEl) photosEl.value = '';
+    }).catch(err => alert("Ошибка Firestore: " + err.message));
 }
 
 function editField(field) {
