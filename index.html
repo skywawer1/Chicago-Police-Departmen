@@ -4,113 +4,9 @@
     <meta charset="UTF-8">
     <title>Chicago PD - Database Terminal</title>
     <link rel="stylesheet" href="style.css">
-    <style>
-        /* Новые стили для экрана блокировки гражданских */
-        .lock-screen-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 100vh;
-            background: #030712;
-            color: #ffffff;
-            text-align: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        .lock-box {
-            background: #0b1329;
-            border: 2px solid #ef4444;
-            border-radius: 8px;
-            padding: 40px;
-            max-width: 600px;
-            box-shadow: 0 0 30px rgba(239, 68, 68, 0.2);
-        }
-        .lock-icon {
-            font-size: 60px;
-            color: #ef4444;
-            margin-bottom: 20px;
-        }
-        .lock-title {
-            font-size: 24px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            color: #ef4444;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-        .lock-subtitle {
-            color: #9ca3af;
-            font-size: 14px;
-            margin-bottom: 25px;
-        }
-        .lock-text {
-            font-size: 15px;
-            line-height: 1.6;
-            color: #e5e7eb;
-            margin-bottom: 30px;
-            background: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-left: 4px solid #ef4444;
-            text-align: left;
-        }
-
-        /* Стили для поиска и базы законов */
-        .search-box {
-            margin-bottom: 20px;
-            width: 100%;
-        }
-        .laws-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 15px;
-            max-height: 70vh;
-            overflow-y: auto;
-            padding-right: 5px;
-        }
-        .law-card {
-            background: #0b1329;
-            border: 1px solid #1e293b;
-            border-radius: 6px;
-            padding: 18px;
-            transition: 0.2s;
-        }
-        .law-card:hover {
-            border-color: #3b82f6;
-            background: #0f1c3f;
-        }
-        .law-header {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 10px;
-        }
-        .law-code {
-            background: #ef4444;
-            color: white;
-            padding: 3px 8px;
-            font-size: 12px;
-            font-weight: bold;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-        .law-code.ac {
-            background: #10b981;
-        }
-        .law-title {
-            margin: 0;
-            font-size: 16px;
-            color: #3b82f6;
-            font-weight: bold;
-        }
-        .law-desc {
-            margin: 0;
-            font-size: 14px;
-            color: #cbd5e1;
-            line-height: 1.5;
-        }
-    </style>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -123,7 +19,7 @@
 
     <div id="auth-screen">
         <div class="auth-box">
-            <img src="logo.png" alt="CPD Badge" class="auth-logo" id="main-auth-logo">
+            <img src="logo.png" alt="CPD Badge" class="auth-logo" id="main-auth-logo" onerror="this.src='logo.png'">
             <h2>CPD DATABASE</h2>
             <p class="auth-sub">CHICAGO POLICE DEPARTMENT</p>
             <input type="email" id="auth-email" placeholder="Email (user@cpd.gov)">
@@ -137,9 +33,9 @@
     </div>
 
     <div id="app-screen" style="display: none;">
-        <aside id="sidebar-el" class="sidebar">
+        <aside class="sidebar">
             <div class="sidebar-header">
-                <img src="logo.png" alt="Logo" class="side-logo">
+                <img src="logo.png" alt="Logo" class="side-logo" onerror="this.src='https://via.placeholder.com/45?text=CPD'">
                 <div>
                     <h1>CHICAGO PD</h1>
                     <p>DATABASE TERMINAL</p>
@@ -149,32 +45,30 @@
             <nav id="sidebar-nav"></nav>
 
             <div class="sidebar-bottom-brand">
-                <img src="logo.png" alt="CPD Division" class="brand-img">
+                <img src="logo.png" alt="CPD Division" class="brand-img" onerror="this.src='https://via.placeholder.com/70?text=PATCH'">
                 <button id="btn-logout" class="btn-logout-small">ВЫХОД ИЗ СИСТЕМЫ</button>
             </div>
         </aside>
 
         <main class="content">
-            <header id="topbar-el" class="topbar">
-                <div class="topbar-left">
+            <header class="topbar">
+                <div class="topbar-line">
                     <div class="info-block clickable" id="unit-edit">
-                        <span class="label">MARKING</span>
+                        <span class="label">MARKING:</span>
                         <span id="disp-unit" class="value">---</span>
                     </div>
                     <div class="info-block clickable" id="name-edit">
-                        <span class="label">CALLSIGN</span>
+                        <span class="label">CALLSIGN:</span>
                         <span id="disp-name" class="value">---</span>
                     </div>
                     <div class="info-block clickable" id="status-toggle">
-                        <span class="label">STATUS</span>
+                        <span class="label">STATUS:</span>
                         <span id="disp-status" class="value status-badge">OFF DUTY</span>
                     </div>
                     <div class="info-block">
-                        <span class="label">RANK / DIVISION</span>
+                        <span class="label">RANK / DIV:</span>
                         <span id="disp-rank-div" class="value">USER / UNASSIGNED</span>
                     </div>
-                </div>
-                <div class="topbar-right">
                     <button id="btn-switch-bureau" class="btn-bureau" style="display: none;">DETECTIVE BUREAU ⮂</button>
                 </div>
             </header>
@@ -182,9 +76,6 @@
             <div id="tab-container" class="tab-main"></div>
         </main>
     </div>
-    <button id="btn-on-duty">On Duty</button>
-<button id="btn-off-duty">Off Duty</button>
-<button id="btn-on-scene">On Scene</button>
 
     <script src="script.js"></script>
 </body>
