@@ -188,6 +188,7 @@ function renderNav() {
 
 function switchTab(tab) {
     const container = document.getElementById('tab-container');
+    // Очищаем контейнер и задаем базовый заголовок вкладки
     container.innerHTML = `<h2 class="tab-title">${tab.toUpperCase()}</h2>`;
 
     if (tab === 'Ожидание одобрения') {
@@ -223,13 +224,81 @@ function switchTab(tab) {
             document.getElementById('report-text').value = drafts[currentUser.email + '_' + currentType];
         }
 
-        // НОВОЕ: Если это вкладка Кейс-файлы, выводим таблицу с кейс-файлами ниже формы
+        // Если это вкладка Кейс-файлы, выводим таблицу с кейс-файлами ниже формы
         if (isCase) {
             container.innerHTML += `<br><hr style="border-color:var(--border); margin: 25px 0;"><h3 style="color:var(--accent-blue); margin-bottom:15px;">АРХИВ КЕЙС-ФАЙЛОВ</h3>`;
             let caseFilesList = reports.filter(r => r.globalType === 'casefile' || r.type === 'casefile');
             renderReportTable(container, caseFilesList);
         }
     } 
+    else if (tab === 'Постановления JSA') {
+        let isJSA = (currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN');
+        
+        let htmlContent = `
+            <p class="tab-subtitle" style="color:var(--text-gray); margin-bottom: 20px;">Официальные постановления и судебные ордера от сотрудников Юстиции (JSA).</p>
+        `;
+
+        if (isJSA) {
+            htmlContent += `
+                <div class="form-box" style="border-left: 4px solid #eab308; margin-bottom: 30px;">
+                    <h3 style="color:#eab308; margin-bottom: 15px;">📜 ИЗДАТЬ НОВОЕ ПОСТАНОВЛЕНИЕ / ОРДЕР</h3>
+                    <select id="report-type" class="input-field" onchange="applyTemplate()" style="margin-bottom:15px; border-color:#eab308;">
+                        <option value="">-- ВЫБЕРИТЕ ТИП ДОКУМЕНТА --</option>
+                        <option value="постановление">ОФИЦИАЛЬНОЕ ПОСТАНОВЛЕНИЕ JSA</option>
+                    </select>
+                    <input type="text" id="jsa-title" class="input-field" placeholder="ЗАГОЛОВОК (Например: ПОСТАНОВЛЕНИЕ №042 — ОБЫСК ИМУЩЕСТВА)">
+                    <textarea id="report-text" class="report-area" style="height: 200px;" placeholder="Выберите формат выше для генерации бланка..."></textarea>
+                    <div class="actions">
+                        <button onclick="submitJSADocument('постановление')" class="btn-primary" style="background:#eab308; color:#000; font-weight:bold;">ОПУБЛИКОВАТЬ ДОКУМЕНТ</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            htmlContent += `
+                <div class="info-box" style="background: rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308; padding: 15px; border-radius: 4px; margin-bottom: 20px; color: #f1f1f1;">
+                    🔒 Публикация постановлений доступна только сотрудникам со статусом <strong>JSA Liaison / Судебная власть</strong>.
+                </div>
+            `;
+        }
+
+        htmlContent += `
+            <br><hr style="border-color:var(--border); margin: 25px 0;">
+            <h3 style="color:var(--accent-blue); margin-bottom:15px;">АРХИВ ПОСТАНОВЛЕНИЙ</h3>
+        `;
+        
+        container.innerHTML += htmlContent;
+
+        // Выводим существующие постановления
+        let jsaList = reports.filter(r => r.globalType === 'jsa-doc' || r.type === 'постановление');
+        renderReportTable(container, jsaList);
+    }
+    else if (tab === 'Обращения к JSA') {
+        let htmlContent = `
+            <p class="tab-subtitle" style="color:var(--text-gray); margin-bottom: 20px;">Подача и просмотр обращений, запросов на ордера и передача дел от Департамента Полиции в JSA.</p>
+            
+            <div class="form-box" style="margin-bottom: 30px;">
+                <h3 style="color:var(--accent-blue); margin-bottom: 15px;">📥 ОТПРАВИТЬ ОБРАЩЕНИЕ / ЗАПРОС НА ОРДЕР</h3>
+                <select id="report-type" class="input-field" onchange="applyTemplate()" style="margin-bottom:15px;">
+                    <option value="">-- ВЫБЕРИТЕ ТИП ОБРАЩЕНИЯ --</option>
+                    <option value="обращение">ОБРАЩЕНИЕ В ЮСТИЦИЮ ОТ ПОЛИЦИИ</option>
+                </select>
+                <input type="text" id="jsa-appeal-title" class="input-field" placeholder="ТЕМА ОБРАЩЕНИЯ (Например: Запрос ордера по Case File №012)">
+                <textarea id="report-text" class="report-area" style="height: 180px;" placeholder="Выберите формат выше для генерации бланка..."></textarea>
+                <div class="actions">
+                    <button onclick="submitJSADocument('обращение')" class="btn-primary">ОТПРАВИТЬ В ЮСТИЦИЮ</button>
+                </div>
+            </div>
+
+            <br><hr style="border-color:var(--border); margin: 25px 0;">
+            <h3 style="color:var(--accent-blue); margin-bottom:15px;">СПИСОК НАПРАВЛЕННЫХ ОБРАЩЕНИЙ</h3>
+        `;
+        
+        container.innerHTML += htmlContent;
+
+        // Выводим существующие обращения
+        let appealsList = reports.filter(r => r.globalType === 'jsa-appeal' || r.type === 'обращение');
+        renderReportTable(container, appealsList);
+    }
     else if (tab === 'Мои отчёты' || tab === 'Все отчёты') {
         let list = reports;
         if (tab === 'Мои отчёты') list = reports.filter(r => r.email === currentUser.email); 
@@ -237,24 +306,23 @@ function switchTab(tab) {
         renderReportTable(container, list);
     }
     else if (tab === 'Все патрульные') {
-        // ИСПРАВЛЕНО: Фильтрация с защитой от пустых или сломанных аккаунтов
         const patrolStaff = Object.values(users).filter(u => u && u.rank !== "USER" && u.rank !== "ADMIN" && u.division !== "GED");
         container.innerHTML += `<div class="staff-grid">`;
         
         patrolStaff.forEach(d => {
-            // Защита: создаем безопасные переменные, если в БД у юзера чего-то нет
             const name = d.name || "Неизвестный Офицер";
             const rank = d.rank || "PO";
             const division = d.division || "Patrol Division";
             const unit = d.unit || "NONE";
             const status = d.status || "OFF DUTY";
+            const statusClass = status.replace(' ', '-').toLowerCase();
             
             container.innerHTML += `
                 <div class="staff-card">
                     <h3>${name}</h3>
                     <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${rank}</p>
                     <p style="font-size:12px; color:var(--text-gray);">${division} | Маркировка: ${unit}</p>
-                    <span class="status-badge ${status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${status}</span>
+                    <span class="status-badge ${statusClass}" style="margin-top:10px; display:inline-block;">${status}</span>
                 </div>`;
         });
         container.innerHTML += `</div>`;
@@ -269,16 +337,16 @@ function switchTab(tab) {
         let stats = {};
         reports.forEach(r => { stats[r.email] = (stats[r.email] || 0) + 1; });
         let activeUsers = Object.keys(users)
-            .filter(email => users[email].rank !== "USER")
+            .filter(email => users[email] && users[email].rank !== "USER")
             .map(email => ({ email, ...users[email], count: stats[email] || 0 }))
             .sort((a, b) => b.count - a.count);
         container.innerHTML += `<div class="stat-grid">`;
         activeUsers.forEach(u => {
             container.innerHTML += `
                 <div class="stat-card">
-                    <h3>${u.name}</h3>
-                    <p>Позывной: <strong>${u.unit}</strong></p>
-                    <p>Дивизион: <strong>${u.division}</strong></p>
+                    <h3>${u.name || "Сотрудник"}</h3>
+                    <p>Позывной: <strong>${u.unit || "—"}</strong></p>
+                    <p>Дивизион: <strong>${u.division || "—"}</strong></p>
                     <p style="margin-top:10px; color:var(--accent-blue);">Всего отчетов: <span style="font-size:20px; font-weight:bold;">${u.count}</span></p>
                 </div>`;
         });
@@ -289,8 +357,8 @@ function switchTab(tab) {
         reports.filter(r => r.type === 'casefile').forEach(r => { detStats[r.email] = (detStats[r.email] || 0) + 1; });
         container.innerHTML += `<h3 style="color:var(--accent-blue); margin-bottom:10px;">АКТИВНОСТЬ ДЕТЕКТИВОВ</h3><div class="stat-grid" style="margin-bottom: 30px;">`; 
         for(let email in users) {
-            if(users[email].rank === "DETECTIVE" || users[email].division === "GED" || users[email].rank === "ADMIN") {
-                container.innerHTML += `<div class="stat-card"><strong>${users[email].name}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
+            if(users[email] && (users[email].rank === "DETECTIVE" || users[email].division === "GED" || users[email].rank === "ADMIN")) {
+                container.innerHTML += `<div class="stat-card"><strong>${users[email].name || "Детектив"}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
             }
         }
         container.innerHTML += `</div><hr style="border-color:var(--border); margin-bottom:20px;"><h3>СПИСОК ОПГ ЧИКАГО</h3><div class="gang-grid" id="gang-container"></div>`;
@@ -311,15 +379,23 @@ function switchTab(tab) {
         container.innerHTML += `</div>`;
     }
     else if (tab === 'Сотрудники ГЕД') {
-        const dets = Object.values(users).filter(u => u.division === "GED" || u.rank === "DETECTIVE" || u.rank === "ADMIN");
+        const dets = Object.values(users).filter(u => u && (u.division === "GED" || u.rank === "DETECTIVE" || u.rank === "ADMIN" || u.rank === "JSA"));
         container.innerHTML += `<div class="staff-grid">`;
         dets.forEach(d => {
+            // ИСПРАВЛЕНО: Безопасные переменные для ГЕД (защита от краша скрипта при пустом d.status)
+            const name = d.name || "Неизвестный Детектив";
+            const rank = d.rank || "DETECTIVE";
+            const division = d.division || "Detective Bureau";
+            const unit = d.unit || "NONE";
+            const status = d.status || "OFF DUTY";
+            const statusClass = status.replace(' ', '-').toLowerCase();
+
             container.innerHTML += `
                 <div class="staff-card">
-                    <h3>${d.name}</h3>
-                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank}</p>
-                    <p style="font-size:12px; color:var(--text-gray);">${d.division} | Маркировка: ${d.unit}</p>
-                    <span class="status-badge ${d.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${d.status}</span>
+                    <h3>${name}</h3>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${rank}</p>
+                    <p style="font-size:12px; color:var(--text-gray);">${division} | Маркировка: ${unit}</p>
+                    <span class="status-badge ${statusClass}" style="margin-top:10px; display:inline-block;">${status}</span>
                 </div>`;
         });
         container.innerHTML += `</div>`;
@@ -329,22 +405,100 @@ function switchTab(tab) {
     }
 }
 
+// 1. ФУНКЦИЯ ОТРИСОВКИ ТАБЛИЦЫ (Понимает и обычные рапорты, и JSA)
 function renderReportTable(container, list) {
     if (list.length === 0) {
-        container.innerHTML += `<p class="empty-text">Отчетов в базе данных не обнаружено.</p>`;
+        container.innerHTML += `<p class="empty-text">Отчетов или документов в базе данных не обнаружено.</p>`;
         return;
     }
     let table = `<table class="db-table">
-        <thead><tr><th>ТИП ДОКУМЕНТА</th><th>ДАТА ДОБАВЛЕНИЯ</th><th>АВТОР</th><th>МАРКИРОВКА</th><th>ОТДЕЛ</th></tr></thead>
+        <thead>
+            <tr>
+                <th>ТИП ДОКУМЕНТА</th>
+                <th>ДАТА ДОБАВЛЕНИЯ</th>
+                <th>АВТОР</th>
+                <th>ОТДЕЛ / ДОЛЖНОСТЬ</th>
+            </tr>
+        </thead>
         <tbody>`;
+        
     list.forEach(r => {
-        table += `<tr onclick="viewReport('${r.id}')">
-                <td style="color:var(--accent-blue); font-weight:bold;">${r.type.toUpperCase()}</td>
-                <td>${r.date}</td><td>${r.author || "Неизвестно"}</td><td>${r.unit || "NONE"}</td><td>${r.division || "Unassigned"}</td>
+        // Безопасное чтение данных
+        const typeStr = (r.title || r.type || r.globalType || "ДОКУМЕНТ").toUpperCase();
+        const dateStr = r.date || "—";
+        const authorStr = r.author || r.name || "Неизвестно";
+        const deptStr = r.division || r.rank || "—";
+        
+        // Вызываем правильную функцию viewReport(id)
+        table += `<tr onclick="viewReport('${r.id}')" style="cursor: pointer;">
+                <td style="color:var(--accent-blue); font-weight:bold;">${typeStr}</td>
+                <td>${dateStr}</td>
+                <td>${authorStr}</td>
+                <td>${deptStr}</td>
             </tr>`; 
     });
     table += `</tbody></table>`;
     container.innerHTML += table;
+}
+
+// 2. ФУНКЦИЯ ОТКРЫТИЯ МОДАЛЬНОГО ОКНА (Связана с твоим modal-view)
+function viewReport(id) {
+    const r = reports.find(rep => rep.id === id);
+    if(!r) return;
+    
+    // Ищем ТВОЕ оригинальное модальное окно
+    const m = document.getElementById('modal-view');
+    if(!m) return alert("Ошибка: Окно 'modal-view' не найдено в HTML!");
+    
+    m.style.display = 'flex'; // Открываем окно
+    
+    // Подгружаем фото
+    let photoHtml = r.photos && r.photos.length > 0 
+        ? r.photos.map(p => `<img src="${p}" class="report-photo" onclick="window.open(this.src)">`).join('') 
+        : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
+    
+    // Кнопки управления (Удалить, Редактировать, Заметка)
+    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">УДАЛИТЬ</button>` : '';
+    let canEdit = currentUser.email === r.email || currentUser.rank === "ADMIN" || currentUser.division === "GED" || currentUser.rank === "DETECTIVE" || currentUser.rank === "JSA";
+    
+    let editBtns = canEdit ? `
+        <button onclick="editReportText('${r.id}')" class="btn-secondary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">РЕДАКТИРОВАТЬ</button>
+        <button onclick="addReportNote('${r.id}')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">+ ЗАМЕТКА</button>
+    ` : '';
+
+    // Подгружаем заметки, если они есть
+    let notesHtml = '';
+    if (r.notes && r.notes.length > 0) {
+        notesHtml = `<h3 style="margin-top:20px; margin-bottom:10px; color:#f59e0b;">СЛУЖЕБНЫЕ ЗАМЕТКИ:</h3>`;
+        r.notes.forEach(note => {
+            notesHtml += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 13px;">
+                <strong style="color:#f59e0b;">${note.author} (${note.date}):</strong><br>${note.text}
+            </div>`;
+        });
+    }
+
+    // Безопасные переменные для шапки отчета
+    const typeStr = (r.title || r.type || "ДОКУМЕНТ").toUpperCase();
+    const authorStr = r.author || r.name || "Неизвестно";
+    const unitStr = r.unit ? `[${r.unit}]` : "";
+    const divStr = r.division || r.rank || "—";
+
+    // Вставляем все данные внутрь modal-body
+    document.getElementById('modal-body').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
+            <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${typeStr}</h1>
+            <div style="display:flex; align-items:center;">
+                <span style="color:var(--text-gray); font-size:14px;">${r.date || ""}</span>
+                ${editBtns}
+                ${adminBtn}
+            </div>
+        </div>
+        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${authorStr} ${unitStr} | <strong>ОТДЕЛ/ДОЛЖНОСТЬ:</strong> ${divStr}</p>
+        <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
+        ${notesHtml}
+        <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
+        <div class="report-photos-grid">${photoHtml}</div>
+    `;
 }
 
 function viewReport(id) {
@@ -713,3 +867,105 @@ function closePhotoViewer() {
     viewer.style.display = 'none'; // Скрываем окно
     fullSizeImg.src = ""; // Очищаем источник, чтобы не было видно старой фото при следующем открытии
 }
+// 1. ФУНКЦИЯ ОТРИСОВКИ ТАБЛИЦЫ
+window.renderReportTable = function(container, list) {
+    if (!list || list.length === 0) {
+        container.innerHTML += `<p class="empty-text">Отчетов или документов в базе данных не обнаружено.</p>`;
+        return;
+    }
+    let table = `<table class="db-table" style="width:100%; text-align:left; border-collapse: collapse; margin-top:15px;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--border);">
+                <th style="padding:10px;">ТИП ДОКУМЕНТА</th>
+                <th style="padding:10px;">ДАТА ДОБАВЛЕНИЯ</th>
+                <th style="padding:10px;">АВТОР</th>
+                <th style="padding:10px;">ОТДЕЛ / ДОЛЖНОСТЬ</th>
+            </tr>
+        </thead>
+        <tbody>`;
+        
+    list.forEach(r => {
+        const typeStr = (r.title || r.type || r.globalType || "ДОКУМЕНТ").toUpperCase();
+        const dateStr = r.date || "—";
+        const authorStr = r.author || r.name || "Неизвестно";
+        const deptStr = r.division || r.rank || "—";
+        
+        table += `<tr onclick="window.viewReport('${r.id}')" style="cursor: pointer; border-bottom: 1px solid var(--border);">
+                <td style="padding:10px; color:var(--accent-blue); font-weight:bold;">${typeStr}</td>
+                <td style="padding:10px;">${dateStr}</td>
+                <td style="padding:10px;">${authorStr}</td>
+                <td style="padding:10px;">${deptStr}</td>
+            </tr>`; 
+    });
+    table += `</tbody></table>`;
+    container.innerHTML += table;
+};
+
+// 2. ФУНКЦИЯ ОТКРЫТИЯ ОКНА (ГЛОБАЛЬНАЯ)
+window.viewReport = function(id) {
+    console.log("Попытка открыть документ с ID:", id); // Это появится в консоли (F12)
+    
+    if (!reports || reports.length === 0) {
+        return alert("База отчетов еще не загрузилась. Подождите пару секунд.");
+    }
+
+    const r = reports.find(rep => rep.id === id);
+    if (!r) {
+        return alert("Ошибка: Документ с таким ID не найден в памяти!");
+    }
+    
+    const m = document.getElementById('modal-view');
+    if (!m) {
+        return alert("Критическая ошибка: HTML-элемент 'modal-view' не найден на странице!");
+    }
+    
+    // Подгружаем фото
+    let photoHtml = r.photos && r.photos.length > 0 
+        ? r.photos.map(p => `<img src="${p}" class="report-photo" style="max-width:200px; margin-right:10px; cursor:pointer; border-radius:4px;" onclick="window.open(this.src)">`).join('') 
+        : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
+    
+    // Кнопки управления
+    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 5px 10px; font-size: 11px; margin-left:10px; background:#ef4444; color:#fff; border:none; border-radius:3px; cursor:pointer;">УДАЛИТЬ</button>` : '';
+    let canEdit = currentUser.email === r.email || currentUser.rank === "ADMIN" || currentUser.division === "GED" || currentUser.rank === "DETECTIVE" || currentUser.rank === "JSA";
+    
+    let editBtns = canEdit ? `
+        <button onclick="editReportText('${r.id}')" class="btn-secondary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">РЕДАКТИРОВАТЬ</button>
+        <button onclick="addReportNote('${r.id}')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">+ ЗАМЕТКА</button>
+    ` : '';
+
+    // Подгружаем заметки
+    let notesHtml = '';
+    if (r.notes && r.notes.length > 0) {
+        notesHtml = `<h3 style="margin-top:20px; margin-bottom:10px; color:#f59e0b;">СЛУЖЕБНЫЕ ЗАМЕТКИ:</h3>`;
+        r.notes.forEach(note => {
+            notesHtml += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 13px;">
+                <strong style="color:#f59e0b;">${note.author} (${note.date}):</strong><br>${note.text}
+            </div>`;
+        });
+    }
+
+    // Собираем шапку
+    const typeStr = (r.title || r.type || "ДОКУМЕНТ").toUpperCase();
+    const authorStr = r.author || r.name || "Неизвестно";
+    const unitStr = r.unit ? `[${r.unit}]` : "";
+    const divStr = r.division || r.rank || "—";
+
+    // Вставляем контент
+    document.getElementById('modal-body').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
+            <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${typeStr}</h1>
+            <div style="display:flex; align-items:center;">
+                <span style="color:var(--text-gray); font-size:14px;">${r.date || ""}</span>
+                ${editBtns}
+                ${adminBtn}
+            </div>
+        </div>
+        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${authorStr} ${unitStr} | <strong>ОТДЕЛ/ДОЛЖНОСТЬ:</strong> ${divStr}</p>
+        <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
+        ${notesHtml}
+        <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
+        <div class="report-photos-grid" style="display:flex; gap:10px; flex-wrap:wrap;">${photoHtml}</div>
+    `;
+
+    m.style.display = 'flex'; // Открываем
+};
