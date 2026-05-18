@@ -189,22 +189,23 @@ function renderNav() {
 function switchTab(tab) {
     const container = document.getElementById('tab-container');
     container.innerHTML = `<h2 class="tab-title">${tab.toUpperCase()}</h2>`;
-    
+
     if (tab === 'Ожидание одобрения') {
-        container.innerHTML += `<p class="empty-text">Вы успешно зарегистрированы в системе CPD. Обратитесь к шефу/администратору для привязки ранга к почте: <strong>${currentUser.email}</strong>.</p>`; 
+        container.innerHTML += `<p class="empty-text">Вы успешно зарегистрированы в системе CPD.
+        Обратитесь к шефу/администратору для привязки ранга к почте: <strong>${currentUser.email}</strong>.</p>`; 
     }
     else if (tab === 'Новый отчёт' || tab === 'Кейс-файлы') {
         let isCase = (tab === 'Кейс-файлы');
         let options = !isCase ? 
             `<option value="incident">РАПОРТ ОБ ИНЦИДЕНТЕ</option><option value="accident">ОТЧЕТ О ПРОИСШЕСТВИИ</option>` :  
             `<option value="casefile">CASE FILE — DETECTIVE DIVISION</option>`;
-            
         container.innerHTML += `
             <div class="form-box">
                 <select id="report-type" class="input-field" onchange="applyTemplate()">
                     <option value="">-- ВЫБЕРИТЕ ФОРМАТ ОТЧЕТА --</option>
                     ${options}
                 </select>
+     
                 <textarea id="report-text" class="report-area" placeholder="Текст отчета сгенерируется после выбора формата..."></textarea>
                 <div class="photo-uploader">
                     <label for="photo-input" class="upload-label">📁 ДОБАВИТЬ МНОЖЕСТВО ФОТОГРАФИЙ ИЛИ СКРИНШОТОВ</label>
@@ -221,6 +222,13 @@ function switchTab(tab) {
         if (drafts[currentUser.email + '_' + currentType]) {
             document.getElementById('report-text').value = drafts[currentUser.email + '_' + currentType];
         }
+
+        // НОВОЕ: Если это вкладка Кейс-файлы, выводим таблицу с кейс-файлами ниже формы
+        if (isCase) {
+            container.innerHTML += `<br><hr style="border-color:var(--border); margin: 25px 0;"><h3 style="color:var(--accent-blue); margin-bottom:15px;">АРХИВ КЕЙС-ФАЙЛОВ</h3>`;
+            let caseFilesList = reports.filter(r => r.globalType === 'casefile' || r.type === 'casefile');
+            renderReportTable(container, caseFilesList);
+        }
     } 
     else if (tab === 'Мои отчёты' || tab === 'Все отчёты') {
         let list = reports;
@@ -229,17 +237,24 @@ function switchTab(tab) {
         renderReportTable(container, list);
     }
     else if (tab === 'Все патрульные') {
-        const patrolStaff = Object.values(users).filter(u => u.rank === "PO" || u.rank === "SERGEANT" || u.rank === "DETECTIVE" || u.rank === "ADMIN");
-        
+        // ИСПРАВЛЕНО: Фильтрация с защитой от пустых или сломанных аккаунтов
+        const patrolStaff = Object.values(users).filter(u => u && u.rank !== "USER" && u.rank !== "ADMIN" && u.division !== "GED");
         container.innerHTML += `<div class="staff-grid">`;
+        
         patrolStaff.forEach(d => {
-            const userStatus = d.status || "OFF DUTY";
+            // Защита: создаем безопасные переменные, если в БД у юзера чего-то нет
+            const name = d.name || "Неизвестный Офицер";
+            const rank = d.rank || "PO";
+            const division = d.division || "Patrol Division";
+            const unit = d.unit || "NONE";
+            const status = d.status || "OFF DUTY";
+            
             container.innerHTML += `
                 <div class="staff-card">
-                    <h3>${d.name || "Без имени"}</h3>
-                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank || "PO"}</p>
-                    <p style="font-size:12px; color:var(--text-gray);">${d.division || "Patrol Division"} | Маркировка: ${d.unit || "NONE"}</p>
-                    <span class="status-badge ${userStatus.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${userStatus}</span>
+                    <h3>${name}</h3>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${rank}</p>
+                    <p style="font-size:12px; color:var(--text-gray);">${division} | Маркировка: ${unit}</p>
+                    <span class="status-badge ${status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${status}</span>
                 </div>`;
         });
         container.innerHTML += `</div>`;
@@ -257,14 +272,13 @@ function switchTab(tab) {
             .filter(email => users[email].rank !== "USER")
             .map(email => ({ email, ...users[email], count: stats[email] || 0 }))
             .sort((a, b) => b.count - a.count);
-            
         container.innerHTML += `<div class="stat-grid">`;
         activeUsers.forEach(u => {
             container.innerHTML += `
                 <div class="stat-card">
-                    <h3>${u.name || "Без имени"}</h3>
-                    <p>Позывной: <strong>${u.unit || "NONE"}</strong></p>
-                    <p>Дивизион: <strong>${u.division || "Unassigned"}</strong></p>
+                    <h3>${u.name}</h3>
+                    <p>Позывной: <strong>${u.unit}</strong></p>
+                    <p>Дивизион: <strong>${u.division}</strong></p>
                     <p style="margin-top:10px; color:var(--accent-blue);">Всего отчетов: <span style="font-size:20px; font-weight:bold;">${u.count}</span></p>
                 </div>`;
         });
@@ -273,14 +287,12 @@ function switchTab(tab) {
     else if (tab === 'Активные банды') {
         let detStats = {};
         reports.filter(r => r.type === 'casefile').forEach(r => { detStats[r.email] = (detStats[r.email] || 0) + 1; });
-        
         container.innerHTML += `<h3 style="color:var(--accent-blue); margin-bottom:10px;">АКТИВНОСТЬ ДЕТЕКТИВОВ</h3><div class="stat-grid" style="margin-bottom: 30px;">`; 
         for(let email in users) {
             if(users[email].rank === "DETECTIVE" || users[email].division === "GED" || users[email].rank === "ADMIN") {
-                container.innerHTML += `<div class="stat-card"><strong>${users[email].name || "Без имени"}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
+                container.innerHTML += `<div class="stat-card"><strong>${users[email].name}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
             }
         }
-        
         container.innerHTML += `</div><hr style="border-color:var(--border); margin-bottom:20px;"><h3>СПИСОК ОПГ ЧИКАГО</h3><div class="gang-grid" id="gang-container"></div>`;
         const gCont = document.getElementById('gang-container');
         gangs.forEach(g => {
@@ -302,27 +314,15 @@ function switchTab(tab) {
         const dets = Object.values(users).filter(u => u.division === "GED" || u.rank === "DETECTIVE" || u.rank === "ADMIN");
         container.innerHTML += `<div class="staff-grid">`;
         dets.forEach(d => {
-            const userStatus = d.status || "OFF DUTY";
             container.innerHTML += `
                 <div class="staff-card">
-                    <h3>${d.name || "Без имени"}</h3>
-                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank || "DETECTIVE"}</p>
-                    <p style="font-size:12px; color:var(--text-gray);">${d.division || "GED"} | Маркировка: ${d.unit || "NONE"}</p>
-                    <span class="status-badge ${userStatus.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${userStatus}</span>
+                    <h3>${d.name}</h3>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank}</p>
+                    <p style="font-size:12px; color:var(--text-gray);">${d.division} | Маркировка: ${d.unit}</p>
+                    <span class="status-badge ${d.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${d.status}</span>
                 </div>`;
         });
         container.innerHTML += `</div>`;
-    }
-    else if (tab === 'JSA Liaison') {
-        container.innerHTML += `
-            <div class="form-box">
-                <h3 style="color:var(--accent-blue);">СВЯЗЬ С СУДЕБНОЙ СИСТЕМОЙ (JSA LIAISON)</h3>
-                <p style="color:var(--text-gray); margin-bottom: 15px;">Здесь вы можете оформлять ордера, передавать дела в суд и взаимодействовать с прокуратурой.</p>
-                <textarea id="jsa-request-text" class="report-area" style="height: 200px;" placeholder="Опишите ваш запрос, ордер или прикрепите материалы для прокуратуры..."></textarea>
-                <div class="actions">
-                    <button onclick="alert('Запрос отправлен в прокуратуру (Функция в разработке)')" class="btn-primary">ОТПРАВИТЬ ЗАПРОС</button>
-                </div>
-            </div>`;
     }
     else if (tab === 'Панель Управления') {
         renderAdminPanel(container);
@@ -354,6 +354,11 @@ function viewReport(id) {
     m.style.display = 'flex';
     
     let photoHtml = r.photos && r.photos.length ? r.photos.map(p => `<img src="${p}" class="report-photo" onclick="window.open(this.src)">`).join('') : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
+    // Пример того, как у тебя должна генерироваться картинка
+// Добавь onclick="openPhotoViewer('${photoSrc}')"
+let photosHtml = report.photos.map(photoSrc => 
+    `<img src="${photoSrc}" class="report-photo" onclick="openPhotoViewer('${photoSrc}')">`
+).join('');
     
     let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">УДАЛИТЬ</button>` : '';
     let canEdit = currentUser.email === r.email || currentUser.rank === "ADMIN" || currentUser.division === "GED" || currentUser.rank === "DETECTIVE";
@@ -690,4 +695,21 @@ function addLaw() {
         document.getElementById('adm-law-title').value = '';
         document.getElementById('adm-law-text').value = '';
     });
+}
+// Функция для открытия фото в полном размере
+function openPhotoViewer(imageSrc) {
+    const viewer = document.getElementById('photoViewerModal');
+    const fullSizeImg = document.getElementById('fullSizePhoto');
+    
+    fullSizeImg.src = imageSrc;
+    viewer.style.display = 'flex'; // Показываем окно
+}
+
+// Функция для закрытия фото
+function closePhotoViewer() {
+    const viewer = document.getElementById('photoViewerModal');
+    const fullSizeImg = document.getElementById('fullSizePhoto');
+    
+    viewer.style.display = 'none'; // Скрываем окно
+    fullSizeImg.src = ""; // Очищаем источник, чтобы не было видно старой фото при следующем открытии
 }
