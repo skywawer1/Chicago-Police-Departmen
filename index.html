@@ -20,9 +20,14 @@
             <div style="font-size: 11px; color: #64748b; font-weight: 600; letter-spacing: 0.5px; margin-top: 2px;">TO PROTECT AND TO SERVE</div>
         </div>
     </div>
-    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="toggleStatus()">
-        <div id="top-status-dot" style="width: 14px; height: 14px; border-radius: 50%; background-color: #22c55e; box-shadow: 0 0 8px #22c55e;"></div>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg>
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <div onclick="toggleStatus()" title="Сменить статус" style="cursor: pointer; padding: 5px;">
+            <div id="top-status-dot" style="width: 14px; height: 14px; border-radius: 50%; background-color: #22c55e; box-shadow: 0 0 8px #22c55e;"></div>
+        </div>
+        <div onclick="toggleDivisionPanel()" style="display: flex; align-items: center; gap: 8px; cursor: pointer; border-left: 1px solid #334155; padding-left: 15px;">
+            <span id="current-division-name" style="font-size: 14px; font-weight: 600; color: #f8fafc;">Patrol Division</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg>
+        </div>
     </div>
 </div>
     
