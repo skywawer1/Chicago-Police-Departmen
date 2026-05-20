@@ -152,21 +152,85 @@ function renderUI() {
     renderNav();
 }
 
-function renderNav() {
-    const nav = document.getElementById('sidebar-nav');
-    nav.innerHTML = '';
-    let menu = [];
+// Функция переключения между подразделениями
+window.changeMode = function(newMode) {
+    currentMode = newMode;
+    renderUI();
+};
 
-    if (currentUser.rank === "USER") {
-        menu.push('Ожидание одобрения');
-    } else {
-        if (currentMode === "PATROL") {
-            menu.push('Новый отчёт', 'Мои отчёты', 'Все отчёты', 'Все патрульные', 'Законодательство', 'Статистика');
+function renderUI() {
+    if (!currentUser) return;
+
+    document.getElementById('user-name').innerText = currentUser.name;
+    document.getElementById('user-rank').innerText = `${currentUser.rank} | ${currentUser.unit}`;
+
+    const sidebar = document.getElementById('sidebar-menu');
+    sidebar.innerHTML = ""; 
+
+    // Выпадающий список выбора подразделения (Стильный селектор)
+    sidebar.innerHTML += `
+        <div style="margin-bottom: 20px;">
+            <p style="color: var(--text-gray); font-size: 11px; font-weight: bold; margin-bottom: 5px;">ПОДРАЗДЕЛЕНИЕ / РЕЖИМ:</p>
+            <select onchange="changeMode(this.value)" style="width: 100%; padding: 10px; background: #0f172a; color: var(--accent-blue); border: 1px solid var(--border); border-radius: 4px; font-weight: bold; cursor: pointer; outline: none;">
+                <option value="PATROL" ${currentMode === 'PATROL' ? 'selected' : ''}>🚓 PATROL DIVISION</option>
+                ${(currentUser.rank !== 'PO' && currentUser.rank !== 'USER') ? `<option value="DETECTIVE" ${currentMode === 'DETECTIVE' ? 'selected' : ''}>🕵️ DETECTIVE BUREAU</option>` : ''}
+                <option value="JSA" ${currentMode === 'JSA' ? 'selected' : ''}>⚖️ JSA LIAISON</option>
+                <option value="DISPATCHER" disabled>📻 DISPATCHER (Доработка)</option>
+            </select>
+        </div>
+    `;
+
+    // Отрисовка кнопок в зависимости от выбранного режима
+    if (currentMode === "JSA") {
+        sidebar.innerHTML += `
+            <button onclick="switchTab('Новости JSA')" class="menu-btn" style="border-left: 2px solid #eab308;">📰 НОВОСТИ ЮСТИЦИИ</button>
+        `;
+        // Если у человека ранг JSA или ADMIN — даем полный доступ
+        if (currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN') {
+            sidebar.innerHTML += `
+                <button onclick="switchTab('Заявления от сотрудников')" class="menu-btn">📥 ЗАЯВЛЕНИЯ В JSA</button>
+                <button onclick="switchTab('Постановления JSA')" class="menu-btn">📜 ПОСТАНОВЛЕНИЯ</button>
+                <button onclick="switchTab('Все сотрудники базы')" class="menu-btn">👥 ВСЕ СОТРУДНИКИ (БАЗА)</button>
+            `;
         } else {
-            menu.push('Кейс-файлы', 'Активные банды', 'Сотрудники ГЕД', 'Статистика районов', 'JSA Liaison');
+            sidebar.innerHTML += `
+                <div style="padding: 15px; margin-top: 10px; background: rgba(234, 179, 8, 0.1); border-left: 3px solid #eab308; color: #cbd5e1; font-size: 12px; line-height: 1.5;">
+                    🔒 Вы находитесь в разделе Юстиции. Доступ к документации JSA имеют только уполномоченные сотрудники и Сенат.
+                </div>
+            `;
         }
-        if (currentUser.rank === "ADMIN") menu.push('Панель Управления');
+    } 
+    else if (currentMode === "DETECTIVE") {
+        sidebar.innerHTML += `
+            <button onclick="switchTab('Все отчёты')" class="menu-btn">📊 ВСЕ КЕЙС-ФАЙЛЫ</button>
+            <button onclick="switchTab('Кейс-файлы')" class="menu-btn">📂 НОВЫЙ КЕЙС-ФАЙЛ</button>
+            <button onclick="switchTab('Сотрудники ГЕД')" class="menu-btn">🕵️‍♂️ СОТРУДНИКИ DB/GED</button>
+            <button onclick="switchTab('Активные банды')" class="menu-btn">🎴 АКТИВНЫЕ БАНДЫ</button>
+        `;
+    } 
+    else {
+        // Обычный PATROL
+        sidebar.innerHTML += `
+            <button onclick="switchTab('Новости JSA')" class="menu-btn" style="border-left: 2px solid #eab308; margin-bottom: 15px;">📰 НОВОСТИ JSA</button>
+            <button onclick="switchTab('Написать в JSA')" class="menu-btn">✉️ ПОДАТЬ ЗАЯВЛЕНИЕ В JSA</button>
+            <hr style="border-color:var(--border); margin: 10px 0;">
+            <button onclick="switchTab('Мои отчёты')" class="menu-btn">📄 МОИ РАПОРТЫ</button>
+            <button onclick="switchTab('Новый отчёт')" class="menu-btn">📝 ПОДАТЬ РАПОРТ</button>
+            <button onclick="switchTab('Все патрульные')" class="menu-btn">🚔 ВСЕ ПАТРУЛЬНЫЕ</button>
+            <button onclick="switchTab('Законодательство')" class="menu-btn">⚖️ ЗАКОНОДАТЕЛЬСТВО</button>
+        `;
     }
+
+    if (currentUser.rank === "ADMIN") {
+        sidebar.innerHTML += `
+            <button onclick="switchTab('Панель Управления')" class="menu-btn" style="margin-top:20px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171;">⚙️ АДМИН-ПАНЕЛЬ</button>
+        `;
+    }
+
+    if (!document.querySelector('.tab-title')) {
+        switchTab(currentUser.rank === "USER" ? 'Ожидание одобрения' : 'Мои отчёты');
+    }
+}
 
     menu.forEach(item => {
         const a = document.createElement('a');
@@ -298,6 +362,96 @@ function switchTab(tab) {
         // Выводим существующие обращения
         let appealsList = reports.filter(r => r.globalType === 'jsa-appeal' || r.type === 'обращение');
         renderReportTable(container, appealsList);
+    }
+      else if (tab === 'Новости JSA') {
+        let isJSA = (currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN');
+        
+        container.innerHTML += `<p class="tab-subtitle" style="color:var(--text-gray); margin-bottom: 20px;">Официальные новостные сводки, изменения в регламентах и указы от Министерства Юстиции.</p>`;
+
+        // Форма публикации новостей (только для JSA)
+        if (isJSA) {
+            container.innerHTML += `
+                <div class="form-box" style="border-left: 4px solid #eab308; margin-bottom: 30px;">
+                    <h3 style="color:#eab308; margin-bottom: 15px;">📰 ОПУБЛИКОВАТЬ НОВОСТЬ JSA</h3>
+                    <input type="text" id="jsa-news-title" class="input-field" placeholder="Заголовок новости...">
+                    <textarea id="report-text" class="report-area" style="height: 120px;" placeholder="Текст новостной сводки..."></textarea>
+                    <button onclick="submitJSADocument('jsa-news')" class="btn-primary" style="background:#eab308; color:#000; font-weight:bold;">ПУБЛИКАЦИЯ ДЛЯ ВСЕХ</button>
+                </div>
+            `;
+        }
+
+        container.innerHTML += `<h3 style="color:var(--accent-blue); margin-bottom:15px;">ПОСЛЕДНИЕ НОВОСТИ</h3>`;
+        let newsList = reports.filter(r => r.globalType === 'jsa-news' || r.type === 'jsa-news');
+        renderReportTable(container, newsList);
+    }
+    else if (tab === 'Написать в JSA' || tab === 'Заявления от сотрудников') {
+        let isAppealsView = (tab === 'Заявления от сотрудников'); // Режим просмотра для JSA
+        
+        if (!isAppealsView) {
+            // Форма подачи заявления для патрульных
+            container.innerHTML += `
+                <div class="form-box" style="margin-bottom: 30px;">
+                    <h3 style="color:var(--accent-blue); margin-bottom: 15px;">✉️ ПОДАТЬ ЗАЯВЛЕНИЕ / ЖАЛОБУ В JSA</h3>
+                    <p style="font-size:12px; color:var(--text-gray); margin-bottom:15px;">Используйте эту форму для запроса ордеров, подачи жалоб на сотрудников или передачи дел в суд.</p>
+                    <input type="text" id="jsa-appeal-title" class="input-field" placeholder="ТЕМА ОБРАЩЕНИЯ (Например: Запрос ордера, Жалоба)">
+                    <textarea id="report-text" class="report-area" style="height: 180px;" placeholder="Суть вашего обращения..."></textarea>
+                    <button onclick="submitJSADocument('обращение')" class="btn-primary">ОТПРАВИТЬ В ЮСТИЦИЮ</button>
+                </div>
+            `;
+        }
+
+        if (isAppealsView || currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN') {
+            container.innerHTML += `<br><h3 style="color:var(--accent-blue); margin-bottom:15px;">ПОСТУПИВШИЕ ЗАЯВЛЕНИЯ</h3>`;
+            let appealsList = reports.filter(r => r.globalType === 'jsa-appeal' || r.type === 'обращение');
+            renderReportTable(container, appealsList);
+        }
+    }
+    else if (tab === 'Все сотрудники базы') {
+        // Вкладка для JSA, показывающая ВООБЩЕ ВСЕХ сотрудников всех отделов + выговоры
+        const allStaff = Object.values(users).filter(u => u && u.rank !== "USER");
+        
+        container.innerHTML += `<p style="margin-bottom:15px; color:var(--text-gray);">Полная база данных сотрудников департамента. Доступна выдача взысканий (для SGT/ADMIN/JSA).</p>`;
+        container.innerHTML += `<div class="staff-grid">`;
+        
+        allStaff.forEach(d => {
+            const name = d.name || "Неизвестно";
+            const rank = d.rank || "PO";
+            const division = d.division || "—";
+            const status = d.status || "OFF DUTY";
+            const statusClass = status.replace(' ', '-').toLowerCase();
+            
+            // Считываем выговоры (если их нет, то 0)
+            const strikes = d.strikes || 0;
+            const verbal = d.verbalStrikes || 0;
+            const email = d.email;
+
+            // Кнопки выдачи выговора (Только для Сержантов, Админов и JSA)
+            let strikeBtns = '';
+            if (currentUser.rank === 'ADMIN' || currentUser.rank === 'SGT' || currentUser.rank === 'JSA') {
+                strikeBtns = `
+                    <div style="margin-top: 10px; display:flex; gap:5px;">
+                        <button onclick="issueStrike('${email}', 'verbal')" style="flex:1; padding: 5px; font-size:10px; background:#f59e0b; color:#fff; border:none; border-radius:3px; cursor:pointer;">+ УСТНЫЙ</button>
+                        <button onclick="issueStrike('${email}', 'written')" style="flex:1; padding: 5px; font-size:10px; background:#ef4444; color:#fff; border:none; border-radius:3px; cursor:pointer;">+ ПИСЬМЕННЫЙ</button>
+                    </div>
+                `;
+            }
+
+            container.innerHTML += `
+                <div class="staff-card" style="position:relative; padding-bottom:15px;">
+                    <h3>${name}</h3>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${rank} | ${division}</p>
+                    
+                    <div style="margin-top:10px; padding:8px; background:rgba(0,0,0,0.2); border-radius:4px; font-size:11px;">
+                        <span style="color:#ef4444; font-weight:bold;">Выговоров: ${strikes}</span><br>
+                        <span style="color:#f59e0b; font-weight:bold;">Устных: ${verbal}</span>
+                    </div>
+
+                    <span class="status-badge ${statusClass}" style="margin-top:10px; display:inline-block;">${status}</span>
+                    
+                    ${strikeBtns}
+                </div>`;
+        });
+        container.innerHTML += `</div>`;
     }
     else if (tab === 'Мои отчёты' || tab === 'Все отчёты') {
         let list = reports;
@@ -968,4 +1122,85 @@ window.viewReport = function(id) {
     `;
 
     m.style.display = 'flex'; // Открываем
+};
+
+// ==========================================
+// СИСТЕМА ВЫГОВОРОВ И НАКАЗАНИЙ
+// ==========================================
+window.issueStrike = function(userEmail, type) {
+    // Проверка прав (Только ADMIN и SGT)
+    if (currentUser.rank !== 'ADMIN' && currentUser.rank !== 'SGT' && currentUser.rank !== 'JSA') {
+        return alert("У вас нет полномочий для выдачи дисциплинарных взысканий!");
+    }
+
+    const typeText = type === 'verbal' ? "УСТНЫЙ выговор" : "ПИСЬМЕННЫЙ выговор";
+    const reason = prompt(`Выдача наказания: ${typeText}\nУкажите причину для офицера ${userEmail}:`);
+    
+    if (!reason) return; // Если нажали отмену
+
+    // Обновляем счетчик в базе данных Firebase
+    const userRef = db.collection('users').doc(userEmail);
+    const increment = firebase.firestore.FieldValue.increment(1);
+    
+    let updateData = type === 'verbal' ? { verbalStrikes: increment } : { strikes: increment };
+
+    userRef.update(updateData).then(() => {
+        alert(`Успешно! ${typeText} выдан сотруднику.`);
+        // Принудительно перезагружаем текущую вкладку, чтобы увидеть изменения
+        const currentTabTitle = document.querySelector('.tab-title').innerText;
+        switchTab(currentTabTitle.charAt(0) + currentTabTitle.slice(1).toLowerCase());
+    }).catch(err => {
+        console.error("Ошибка выдачи выговора: ", err);
+        alert("Не удалось выдать выговор. Ошибка соединения с базой.");
+    });
+};
+window.submitJSADocument = function(docType) {
+    const isPostanovlenie = (docType === 'постановление');
+    const isNews = (docType === 'jsa-news');
+    
+    // Ищем инпуты в зависимости от того, что публикуем
+    let titleInputId = 'jsa-appeal-title';
+    if (isPostanovlenie) titleInputId = 'jsa-title';
+    if (isNews) titleInputId = 'jsa-news-title';
+
+    const titleInput = document.getElementById(titleInputId);
+    const textInput = document.getElementById('report-text');
+
+    if (!titleInput || !textInput) return alert("Ошибка: Не удалось найти поля ввода!");
+
+    const title = titleInput.value.trim();
+    const text = textInput.value.trim();
+
+    if (!title || !text || text.includes('Выберите формат')) {
+        return alert("Заполните заголовок и основной текст документа!");
+    }
+
+    let glType = 'jsa-appeal';
+    if (isPostanovlenie) glType = 'jsa-doc';
+    if (isNews) glType = 'jsa-news';
+
+    const docData = {
+        title: title.toUpperCase(),
+        text: text,
+        type: docType,
+        globalType: glType,
+        name: currentUser.name || "Сотрудник",
+        rank: currentUser.rank || "PO",
+        email: currentUser.email,
+        date: new Date().toLocaleString("ru-RU"),
+        photos: [] 
+    };
+
+    db.collection('reports').add(docData).then(() => {
+        alert("Успешно опубликовано!");
+        titleInput.value = "";
+        textInput.value = "";
+        
+        // Обновляем нужную вкладку
+        if (isNews) switchTab('Новости JSA');
+        else if (isPostanovlenie) switchTab('Постановления JSA');
+        else switchTab('Написать в JSA');
+    }).catch(err => {
+        console.error("Ошибка сохранения: ", err);
+    });
 };
