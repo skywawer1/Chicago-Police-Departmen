@@ -361,7 +361,7 @@ function switchTab(tab) {
                 container.innerHTML += `<div class="stat-card"><strong>${users[email].name || "Детектив"}</strong><br>Кейс-файлов: ${detStats[email] || 0}</div>`;
             }
         }
-        container.innerHTML += `</div><hr style="border-color:var(--border); margin-bottom:20px;"><h3>СПИСОК ОПГ ЧИКАГО</h3><div class="gang-grid" id="gang-container"></div>`;
+        container.innerHTML += `</div><hr style="border-color:var(--border); margin-bottom:20px;"><h3>АКТИВНЫЕ УЛИЧНЫЕ БАНДОФОРМИРОВАНИЯ</h3><div class="gang-grid" id="gang-container"></div>`;
         const gCont = document.getElementById('gang-container');
         gangs.forEach(g => {
             const div = document.createElement('div');
@@ -703,8 +703,8 @@ function renderAdminPanel(container) {
             </div>
 
             <div class="form-box admin-box">
-                <h3>ДОБАВЛЕНИЕ НОВОЙ ОПГ</h3>
-                <input id="adm-gang" class="input-field" placeholder="Название ОПГ">
+                <h3>ДОБАВЛЕНИЕ НОВОГО БАНДОФОРМИРОВАНИЯ</h3>
+                <input id="adm-gang" class="input-field" placeholder="Название бандформирования">
                 <textarea id="adm-gang-info" class="input-field" style="height:120px;" placeholder="Информация о банде..."></textarea>
                 <input id="adm-gang-photos" class="input-field" placeholder="Ссылки на photo (через запятую)">
                 <button onclick="addGang()" class="btn-primary" style="width:100%">ДОБАВИТЬ В БАЗУ ДАННЫХ</button>
