@@ -154,11 +154,34 @@ function renderUI() {
     statusEl.textContent = currentUser.status;
     statusEl.className = 'value status-badge ' + currentUser.status.replace(' ', '-').toLowerCase();
 
-    // Создаем раскрытую панель отделов (справа) если её еще нет
-    if (!document.getElementById('division-panel')) {
-        const rightPanel = document.createElement('div');
+    // Обновляем точку статуса
+    const topDot = document.getElementById('top-status-dot');
+    if (topDot) {
+        if (currentUser.status === "ON DUTY") {
+            topDot.style.backgroundColor = "#22c55e"; topDot.style.boxShadow = "0 0 8px #22c55e";
+        } else if (currentUser.status === "OFF DUTY") {
+            topDot.style.backgroundColor = "#ef4444"; topDot.style.boxShadow = "0 0 8px #ef4444";
+        } else {
+            topDot.style.backgroundColor = "#eab308"; topDot.style.boxShadow = "0 0 8px #eab308";
+        }
+    }
+
+    // Обновляем текст текущего отдела в верхнем меню
+    const currentDivName = document.getElementById('current-division-name');
+    if (currentDivName) {
+        if (currentMode === "PATROL") currentDivName.textContent = "Patrol Division";
+        else if (currentMode === "DETECTIVE") currentDivName.textContent = "Detective Bureau";
+        else if (currentMode === "JSA") currentDivName.textContent = "JSA Liason";
+        else if (currentMode === "DISPATCHER") currentDivName.textContent = "Dispatcher";
+    }
+
+    // Создаем выпадающее меню отделов (справа), если его еще нет
+    let rightPanel = document.getElementById('division-panel');
+    if (!rightPanel) {
+        rightPanel = document.createElement('div');
         rightPanel.id = 'division-panel';
-        rightPanel.style.cssText = 'position: fixed; right: 0; top: 80px; background: #0f172a; padding: 15px; border-left: 1px solid #334155; border-radius: 8px 0 0 8px; z-index: 1000; width: 220px; box-shadow: -4px 0 15px rgba(0,0,0,0.5);';
+        // Изначально скрыто (display: none), позиция абсолютная (под верхним меню)
+        rightPanel.style.cssText = 'display: none; position: absolute; right: 25px; top: 60px; background: #0f172a; padding: 15px; border: 1px solid #334155; border-radius: 8px; z-index: 1000; width: 220px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);';
         rightPanel.innerHTML = `<h3 style="color:var(--accent-blue); margin-bottom:15px; font-size: 14px; text-align:center;">ВЫБОР ОТДЕЛА</h3>
             <div id="div-btns" style="display:flex; flex-direction:column; gap:10px;"></div>`;
         document.body.appendChild(rightPanel);
@@ -167,7 +190,7 @@ function renderUI() {
     const divBtns = document.getElementById('div-btns');
     divBtns.innerHTML = '';
     
-    // Логика отображения кнопок справа в зависимости от ранга
+    // Логика отображения кнопок
     const addDivBtn = (name, modeCode, allowedRanks, allowedDivs) => {
         const hasAccess = currentUser.rank === "ADMIN" || allowedRanks.includes(currentUser.rank) || allowedDivs.includes(currentUser.division);
         if (hasAccess) {
@@ -175,7 +198,11 @@ function renderUI() {
             btn.className = currentMode === modeCode ? 'btn-primary' : 'btn-secondary';
             btn.style.width = '100%';
             btn.textContent = name;
-            btn.onclick = () => { currentMode = modeCode; renderUI(); };
+            btn.onclick = () => { 
+                currentMode = modeCode; 
+                rightPanel.style.display = 'none'; // Скрываем меню после выбора
+                renderUI(); 
+            };
             divBtns.appendChild(btn);
         }
     };
@@ -185,7 +212,6 @@ function renderUI() {
     addDivBtn('JSA Liason', 'JSA', ['JSA'], ['JSA Liason']);
     addDivBtn('Dispatcher (На доработке)', 'DISPATCHER', ['PO', 'SERGEANT', 'DETECTIVE', 'JSA'], ['Patrol Division', 'JSA Liason']);
 
-    // Скрываем старую кнопку смены бюро (если она осталась в HTML)
     const oldBureauBtn = document.getElementById('btn-switch-bureau');
     if (oldBureauBtn) oldBureauBtn.style.display = 'none';
 
@@ -379,6 +405,15 @@ function switchTab(tab) {
             // Обычные сотрудники видят только этот текст, список им недоступен
             reqList.innerHTML = `<p class="empty-text" style="color: #64748b;">Ваши заявления конфиденциальны и видны только сотрудникам отдела JSA.</p>`;
         }
+    }
+          else if (tab === 'Управление новостями') {
+        container.innerHTML += `
+            <div class="form-box">
+                <h3 style="color:var(--warning); margin-bottom: 15px;">ОПУБЛИКОВАТЬ НОВОСТЬ JSA</h3>
+                <input type="text" id="news-title" class="input-field" placeholder="Заголовок новости" style="margin-bottom: 15px;">
+                <textarea id="news-text" class="report-area" style="height: 120px; margin-bottom: 15px;" placeholder="Текст новости для сотрудников..."></textarea>
+                <button onclick="submitNews()" class="btn-primary" style="width: 100%; padding: 12px; font-weight: bold;">ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ</button>
+            </div>`;
     }
     else if (tab === 'Новости JSA') {
         container.innerHTML += `<div id="news-list" style="display:flex; flex-direction:column; gap:15px;"></div>`;
@@ -952,5 +987,12 @@ function deleteNews(id) {
             // Обновляем текущую вкладку
             switchTab('Новости JSA');
         }).catch(err => alert("Ошибка удаления: " + err.message));
+    }
+}
+function toggleDivisionPanel() {
+    const panel = document.getElementById('division-panel');
+    if (panel) {
+        // Если скрыта — показываем, если открыта — скрываем
+        panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'block' : 'none';
     }
 }
