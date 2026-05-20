@@ -161,8 +161,11 @@ window.changeMode = function(newMode) {
 function renderUI() {
     if (!currentUser) return;
 
-    document.getElementById('user-name').innerText = currentUser.name;
-    document.getElementById('user-rank').innerText = `${currentUser.rank} | ${currentUser.unit}`;
+    const nameEl = document.getElementById('user-name');
+    const rankEl = document.getElementById('user-rank');
+
+    if (nameEl) nameEl.innerText = currentUser.name;
+    if (rankEl) rankEl.innerText = `${currentUser.rank} | ${currentUser.unit}`;
 
     const sidebar = document.getElementById('sidebar-menu');
     sidebar.innerHTML = ""; 
@@ -232,21 +235,29 @@ function renderUI() {
     }
 }
 
-    menu.forEach(item => {
-        const a = document.createElement('a');
-        a.className = 'nav-item';
-        a.textContent = item;
-        a.onclick = () => {
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            a.classList.add('active');
-            switchTab(item);
-        };
-        nav.appendChild(a);
-    });
+   // 1. Явно объявляем вкладки для терминала
+    const terminalTabs = ['Главная', 'База Данных', 'JSA Liaison', 'Панель Управления'];
 
-    if(nav.firstChild) {
-        nav.firstChild.classList.add('active');
-        switchTab(menu[0]);
+    // 2. Ищем контейнер бокового меню (на скриншоте 167 у тебя это 'sidebar')
+    const nav = document.getElementById('sidebar-menu');
+
+    if (nav) {
+        // Очищаем старое меню, но оставляем шапку с профилем, если она рендерится внутри innerHTML выше
+        // Если у тебя профиль затирается, эту строку nav.innerHTML = "" можно убрать.
+        
+        terminalTabs.forEach(item => {
+            const a = document.createElement('a');
+            a.className = 'nav-item';
+            a.textContent = item;
+            
+            a.onclick = () => {
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                a.classList.add('active');
+                switchTab(item);
+            };
+            
+            nav.appendChild(a);
+        });
     }
 
 function switchTab(tab) {
@@ -293,7 +304,7 @@ function switchTab(tab) {
             let caseFilesList = reports.filter(r => r.globalType === 'casefile' || r.type === 'casefile');
             renderReportTable(container, caseFilesList);
         }
-    } 
+     
     else if (tab === 'Постановления JSA') {
         let isJSA = (currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN');
         
@@ -404,7 +415,7 @@ function switchTab(tab) {
             let appealsList = reports.filter(r => r.globalType === 'jsa-appeal' || r.type === 'обращение');
             renderReportTable(container, appealsList);
         }
-    }
+    
     else if (tab === 'Все сотрудники базы') {
         // Вкладка для JSA, показывающая ВООБЩЕ ВСЕХ сотрудников всех отделов + выговоры
         const allStaff = Object.values(users).filter(u => u && u.rank !== "USER");
@@ -598,37 +609,66 @@ function renderReportTable(container, list) {
 function viewReport(id) {
     const r = reports.find(rep => rep.id === id);
     if(!r) return;
-    
-    // Ищем ТВОЕ оригинальное модальное окно
     const m = document.getElementById('modal-view');
-    if(!m) return alert("Ошибка: Окно 'modal-view' не найдено в HTML!");
-    
-    m.style.display = 'flex'; // Открываем окно
-    
-    // Подгружаем фото
-    let photoHtml = r.photos && r.photos.length > 0 
-        ? r.photos.map(p => `<img src="${p}" class="report-photo" onclick="window.open(this.src)">`).join('') 
-        : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
-    
-    // Кнопки управления (Удалить, Редактировать, Заметка)
-    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">УДАЛИТЬ</button>` : '';
-    let canEdit = currentUser.email === r.email || currentUser.rank === "ADMIN" || currentUser.division === "GED" || currentUser.rank === "DETECTIVE" || currentUser.rank === "JSA";
-    
-    let editBtns = canEdit ? `
-        <button onclick="editReportText('${r.id}')" class="btn-secondary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">РЕДАКТИРОВАТЬ</button>
-        <button onclick="addReportNote('${r.id}')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">+ ЗАМЕТКА</button>
-    ` : '';
+    m.style.display = 'flex';
 
-    // Подгружаем заметки, если они есть
+    // Исправленная логика генерации фотокарточек
+    let photoHtml = '';
+    if (r.photos && r.photos.length > 0) {
+        photoHtml = r.photos.map(photoSrc => 
+            `<img src="${photoSrc}" class="report-photo" onclick="openPhotoViewer('${photoSrc}')">`
+        ).join('');
+    } else {
+        photoHtml = '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
+    }
+
+    // Безопасная проверка прав (проверяем, существует ли currentUser)
+    let adminBtn = '';
+    if (currentUser && currentUser.rank === "ADMIN") {
+        adminBtn = `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">УДАЛИТЬ</button>`;
+    }
+
+    let canEdit = false;
+    if (currentUser) {
+        canEdit = currentUser.email === r.email || currentUser.rank === "ADMIN" || currentUser.division === "GED" || currentUser.rank === "DETECTIVE";
+    }
+
+    let editBtns = '';
+    if (canEdit) {
+        editBtns = `
+            <button onclick="editReportText('${r.id}')" class="btn-secondary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">РЕДАКТИРОВАТЬ</button>
+            <button onclick="addReportNote('${r.id}')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">+ ЗАМЕТКА</button>
+        `;
+    }
+
     let notesHtml = '';
     if (r.notes && r.notes.length > 0) {
-        notesHtml = `<h3 style="margin-top:20px; margin-bottom:10px; color:#f59e0b;">СЛУЖЕБНЫЕ ЗАМЕТКИ:</h3>`;
+        notesHtml = `<h3 style="margin-top:20px; margin-bottom:10px; color:#F59E0B;">СЛУЖЕБНЫЕ ЗАМЕТКИ:</h3>`;
         r.notes.forEach(note => {
-            notesHtml += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 13px;">
-                <strong style="color:#f59e0b;">${note.author} (${note.date}):</strong><br>${note.text}
-            </div>`;
+            notesHtml += `
+                <div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 13px;">
+                    <strong style="color:#F59E0B;">${note.author} (${note.date}):</strong><br>${note.text}
+                </div>
+            `;
         });
     }
+
+    // Рендер тела модального окна (Строка 692 теперь полностью исправна)
+    document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
+        <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${r.type.toUpperCase()}</h1>
+        <div style="display:flex; align-items:center;">
+            <span style="color:var(--text-gray); font-size:14px;">${r.date}</span>
+            ${editBtns}
+            ${adminBtn}
+        </div>
+    </div>
+    <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${r.author || "Неизвестно"} [${r.unit || "NONE"}] | <strong>ДИВИЗИОН:</strong> ${r.division || "Unassigned"}</p>
+    <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
+    ${notesHtml}
+    <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
+    <div class="report-photos-grid">${photoHtml}</div>`;
+}
 
     // Безопасные переменные для шапки отчета
     const typeStr = (r.title || r.type || "ДОКУМЕНТ").toUpperCase();
