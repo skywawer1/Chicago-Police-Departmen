@@ -45,7 +45,7 @@ function bindEvents() {
     document.getElementById('btn-logout').onclick = logout;
     document.getElementById('unit-edit').onclick = () => editField('unit');
     document.getElementById('name-edit').onclick = () => editField('name');
-    document.getElementById('status-toggle').onclick = () => toggleStatus();
+    document.getElementById('status-toggle').onclick = () => window.toggleStatus();
     document.getElementById('btn-switch-bureau').onclick = switchMode;
     document.querySelector('.close-modal').onclick = () => document.getElementById('modal-view').style.display = 'none';
 }
@@ -995,12 +995,12 @@ function editField(field) {
     }
 }
 
-function toggleStatus() {
+window.toggleStatus = function() {
     const statuses = ["ON DUTY", "OFF DUTY", "ON SCENE"];
     const currentStatus = currentUser.status || "OFF DUTY";
     let nextIdx = (statuses.indexOf(currentStatus) + 1) % statuses.length;
     db.collection('users').doc(currentUser.email).update({status: statuses[nextIdx]});
-}
+};
 
 function switchMode() { 
     currentMode = currentMode === "PATROL" ? "DETECTIVE" : "PATROL"; 
