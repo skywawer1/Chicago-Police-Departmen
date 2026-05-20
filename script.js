@@ -225,37 +225,6 @@ function toggleDivisionPanel() {
     }
 }
 
-    const divBtns = document.getElementById('div-btns');
-    divBtns.innerHTML = '';
-    
-    // Логика отображения кнопок
-    const addDivBtn = (name, modeCode, allowedRanks, allowedDivs) => {
-        const hasAccess = currentUser.rank === "ADMIN" || allowedRanks.includes(currentUser.rank) || allowedDivs.includes(currentUser.division);
-        if (hasAccess) {
-            const btn = document.createElement('button');
-            btn.className = currentMode === modeCode ? 'btn-primary' : 'btn-secondary';
-            btn.style.width = '100%';
-            btn.textContent = name;
-            btn.onclick = () => { 
-                currentMode = modeCode; 
-                rightPanel.style.display = 'none'; // Скрываем меню после выбора
-                renderUI(); 
-            };
-            divBtns.appendChild(btn);
-        }
-    };
-
-    addDivBtn('Patrol Division', 'PATROL', ['PO', 'SERGEANT', 'DETECTIVE', 'JSA'], ['Patrol Division', 'GED', 'Detective Bureau', 'JSA Liason']);
-    addDivBtn('Detective Bureau', 'DETECTIVE', ['DETECTIVE'], ['GED', 'Detective Bureau']);
-    addDivBtn('JSA Liason', 'JSA', ['JSA'], ['JSA Liason']);
-    addDivBtn('Dispatcher (На доработке)', 'DISPATCHER', ['PO', 'SERGEANT', 'DETECTIVE', 'JSA'], ['Patrol Division', 'JSA Liason']);
-
-    const oldBureauBtn = document.getElementById('btn-switch-bureau');
-    if (oldBureauBtn) oldBureauBtn.style.display = 'none';
-
-    renderNav();
-}
-
 function renderNav() {
     const nav = document.getElementById('sidebar-nav');
     nav.innerHTML = '';
