@@ -72,6 +72,20 @@
         </aside>
 
         <main class="content">
+            <div id="cpd-top-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 25px; background-color: #020611; border-bottom: 1px solid #1e293b; color: white; position: relative; z-index: 999;">
+    <div style="font-weight: 700; font-size: 14px;">CHICAGO POLICE DEPARTMENT</div>
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <div id="top-status-dot" style="width: 12px; height: 12px; border-radius: 50%; background-color: #22c55e;"></div>
+        <div onclick="toggleDivisionPanel()" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            <span id="current-division-name" style="font-size: 13px;">Patrol Division</span>
+            <span>▼</span>
+        </div>
+    </div>
+</div>
+
+<div id="division-panel" style="display: none; position: absolute; right: 25px; top: 50px; background: #0f172a; padding: 10px; border: 1px solid #334155; border-radius: 8px; width: 200px; z-index: 1000;">
+    <div id="div-btns" style="display: flex; flex-direction: column; gap: 5px;"></div>
+</div>
             <header class="topbar">
                 <div class="topbar-line">
                     <div class="info-block clickable" id="unit-edit">
