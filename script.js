@@ -992,3 +992,4 @@ window.submitJSADocument = function(docType) {
         console.error("Ошибка сохранения: ", err);
     });
 };
+<link rel="icon" href="data:;base64,iVBORw0KGgo=">
