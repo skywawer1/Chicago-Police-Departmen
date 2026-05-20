@@ -46,7 +46,7 @@ function bindEvents() {
     document.getElementById('unit-edit').onclick = () => editField('unit');
     document.getElementById('name-edit').onclick = () => editField('name');
     document.getElementById('status-toggle').onclick = () => window.toggleStatus();
-    document.getElementById('btn-switch-bureau').onclick = switchMode;
+    document.getElementById('btn-switch-bureau').onclick = () => window.switchMode();
     document.querySelector('.close-modal').onclick = () => document.getElementById('modal-view').style.display = 'none';
 }
 
@@ -1002,7 +1002,7 @@ window.toggleStatus = function() {
     db.collection('users').doc(currentUser.email).update({status: statuses[nextIdx]});
 };
 
-function switchMode() { 
+window.switchMode = function() {
     currentMode = currentMode === "PATROL" ? "DETECTIVE" : "PATROL"; 
     renderUI();
 }
