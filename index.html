@@ -72,19 +72,34 @@
         </aside>
 
         <main class="content">
-            <div id="cpd-top-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 25px; background-color: #020611; border-bottom: 1px solid #1e293b; color: white; position: relative; z-index: 999;">
-    <div style="font-weight: 700; font-size: 14px;">CHICAGO POLICE DEPARTMENT</div>
-    <div style="display: flex; align-items: center; gap: 20px;">
-        <div id="top-status-dot" style="width: 12px; height: 12px; border-radius: 50%; background-color: #22c55e;"></div>
-        <div onclick="toggleDivisionPanel()" style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <span id="current-division-name" style="font-size: 13px;">Patrol Division</span>
-            <span>▼</span>
+ <div id="cpd-top-header" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 25px; background-color: #020611; border-bottom: 1px solid #1e293b; color: white; font-family: sans-serif; position: relative; z-index: 100;">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="width: 42px; height: 42px; border: 2px solid #3b82f6; border-radius: 6px; display: flex; align-items: center; justify-content: center; background-color: rgba(59, 130, 246, 0.1);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+        </div>
+        <div>
+            <div style="font-weight: 700; font-size: 16px; letter-spacing: 0.5px;">CHICAGO POLICE DEPARTMENT</div>
+            <div style="font-size: 11px; color: #64748b; font-weight: 600; letter-spacing: 0.5px; margin-top: 2px;">TO PROTECT AND TO SERVE</div>
         </div>
     </div>
-</div>
-
-<div id="division-panel" style="display: none; position: absolute; right: 25px; top: 50px; background: #0f172a; padding: 10px; border: 1px solid #334155; border-radius: 8px; width: 200px; z-index: 1000;">
-    <div id="div-btns" style="display: flex; flex-direction: column; gap: 5px;"></div>
+    
+    <div style="display: flex; align-items: center; gap: 20px;">
+        <div onclick="toggleStatus()" title="Сменить статус" style="cursor: pointer; padding: 5px;">
+            <div id="top-status-dot" style="width: 14px; height: 14px; border-radius: 50%; background-color: #22c55e; box-shadow: 0 0 8px #22c55e;"></div>
+        </div>
+        
+        <div style="position: relative;">
+            <div onclick="toggleDivisionPanel()" style="display: flex; align-items: center; gap: 8px; cursor: pointer; border-left: 1px solid #334155; padding-left: 15px;">
+                <span id="current-division-name" style="font-size: 14px; font-weight: 600; color: #f8fafc;">Patrol Division</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M6 9l6 6 6-6"></path></svg>
+            </div>
+            
+            <div id="division-panel" style="display: none; position: absolute; top: 40px; right: 0; background: #0f172a; padding: 15px; border: 1px solid #334155; border-radius: 8px; width: 220px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 1000;">
+                <h3 style="color: #60a5fa; margin-bottom: 15px; font-size: 14px; text-align: center; font-weight: bold; margin-top: 0;">ВЫБОР ОТДЕЛА</h3>
+                <div id="div-btns" style="display: flex; flex-direction: column; gap: 8px;"></div>
+            </div>
+        </div>
+    </div>
 </div>
             <header class="topbar">
                 <div class="topbar-line">
