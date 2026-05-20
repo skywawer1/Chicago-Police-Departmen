@@ -154,63 +154,73 @@ function checkAuth() {
     }
 }
 
-function renderUI() {
-    document.getElementById('disp-name').textContent = currentUser.name || "Без имени";
-    document.getElementById('disp-unit').textContent = currentUser.unit || "NONE";
-    document.getElementById('disp-rank-div').textContent = `${currentUser.rank || "USER"} / ${currentUser.division || "Unassigned"}`;
-    
-    const statusVal = currentUser.status || "OFF DUTY";
-    const statusEl = document.getElementById('disp-status');
-    statusEl.textContent = statusVal;
-    statusEl.className = 'value status-badge ' + statusVal.replace(' ', '-').toLowerCase();
-    
-    const hasDetAccess = currentUser.rank === "ADMIN" || currentUser.rank === "DETECTIVE" || currentUser.division === "GED"; 
-    const bureauBtn = document.getElementById('btn-switch-bureau');
-    bureauBtn.style.display = hasDetAccess ? 'block' : 'none';
-    bureauBtn.textContent = currentMode === "PATROL" ? "DETECTIVE BUREAU ⮂" : "PATROL DIVISION ⮂";
-    renderNav();
-}
-
-// Функция переключения между подразделениями
-window.changeMode = function(newMode) {
-    currentMode = newMode;
-    renderUI();
-};
-
+// ==========================================
+// ЕДИНАЯ И БЕЗОПАСНАЯ ФУНКЦИЯ RENDERUI
+// ==========================================
 function renderUI() {
     if (!currentUser) return;
 
+    // --- БЛОК 1: Верхняя панель (из первой функции) ---
+    const dispName = document.getElementById('disp-name');
+    const dispUnit = document.getElementById('disp-unit');
+    const dispRankDiv = document.getElementById('disp-rank-div');
+    const dispStatus = document.getElementById('disp-status');
+    const bureauBtn = document.getElementById('btn-switch-bureau');
+
+    if (dispName) dispName.textContent = currentUser.name || "Без имени";
+    if (dispUnit) dispUnit.textContent = currentUser.unit || "NONE";
+    if (dispRankDiv) dispRankDiv.textContent = `${currentUser.rank || "USER"} / ${currentUser.division || "Unassigned"}`;
+
+    if (dispStatus) {
+        const statusVal = currentUser.status || "OFF DUTY";
+        dispStatus.textContent = statusVal;
+        dispStatus.className = 'value status-badge ' + statusVal.replace(' ', '-').toLowerCase();
+    }
+
+    const hasDetAccess = currentUser.rank === "ADMIN" || currentUser.rank === "DETECTIVE" || currentUser.division === "GED";
+    if (bureauBtn) {
+        bureauBtn.style.display = hasDetAccess ? 'block' : 'none';
+        bureauBtn.textContent = currentMode === "PATROL" ? "DETECTIVE BUREAU ⇄" : "PATROL DIVISION ⇄";
+    }
+
+    // --- БЛОК 2: Карточка пользователя (из второй функции) ---
     const nameEl = document.getElementById('user-name');
     const rankEl = document.getElementById('user-rank');
 
-    if (nameEl) nameEl.innerText = currentUser.name;
-    if (rankEl) rankEl.innerText = `${currentUser.rank} | ${currentUser.unit}`;
+    if (nameEl) nameEl.innerText = currentUser.name || "Без имени";
+    if (rankEl) rankEl.innerText = `${currentUser.rank || "USER"} | ${currentUser.unit || "NONE"}`;
 
+    // --- БЛОК 3: Боковое меню (Sidebar) ---
     const sidebar = document.getElementById('sidebar-menu');
-    sidebar.innerHTML = ""; 
+    if (!sidebar) {
+        // Если меню на странице нет, просто обновляем навигацию и выходим
+        if (typeof renderNav === 'function') renderNav();
+        return;
+    }
+
+    // Очищаем сайдбар перед новой отрисовкой
+    sidebar.innerHTML = "";
 
     // Выпадающий список выбора подразделения (Стильный селектор)
     sidebar.innerHTML += `
         <div style="margin-bottom: 20px;">
             <p style="color: var(--text-gray); font-size: 11px; font-weight: bold; margin-bottom: 5px;">ПОДРАЗДЕЛЕНИЕ / РЕЖИМ:</p>
             <select onchange="changeMode(this.value)" style="width: 100%; padding: 10px; background: #0f172a; color: var(--accent-blue); border: 1px solid var(--border); border-radius: 4px; font-weight: bold; cursor: pointer; outline: none;">
-                <option value="PATROL" ${currentMode === 'PATROL' ? 'selected' : ''}>🚓 PATROL DIVISION</option>
-                ${(currentUser.rank !== 'PO' && currentUser.rank !== 'USER') ? `<option value="DETECTIVE" ${currentMode === 'DETECTIVE' ? 'selected' : ''}>🕵️ DETECTIVE BUREAU</option>` : ''}
+                <option value="PATROL" ${currentMode === 'PATROL' ? 'selected' : ''}>🕵️‍♂️ PATROL DIVISION</option>
+                ${(currentUser.rank !== 'PO' && currentUser.rank !== 'USER') ? `<option value="DETECTIVE" ${currentMode === 'DETECTIVE' ? 'selected' : ''}>🦅 DETECTIVE BUREAU</option>` : ''}
                 <option value="JSA" ${currentMode === 'JSA' ? 'selected' : ''}>⚖️ JSA LIAISON</option>
-                <option value="DISPATCHER" disabled>📻 DISPATCHER (Доработка)</option>
+                <option value="DISPATCHER" disabled>📟 DISPATCHER (Доработка)</option>
             </select>
         </div>
     `;
 
-    // Отрисовка кнопок в зависимости от выбранного режима
+    // Отрисовка кнопок в зависимости от режима управления
     if (currentMode === "JSA") {
-        sidebar.innerHTML += `
-            <button onclick="switchTab('Новости JSA')" class="menu-btn" style="border-left: 2px solid #eab308;">📰 НОВОСТИ ЮСТИЦИИ</button>
-        `;
-        // Если у человека ранг JSA или ADMIN — даем полный доступ
+        sidebar.innerHTML += `<button onclick="switchTab('Новости JSA')" class="menu-btn" style="border-left: 2px solid #eab308;">📰 НОВОСТИ ЮСТИЦИИ</button>`;
+        
         if (currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN') {
             sidebar.innerHTML += `
-                <button onclick="switchTab('Заявления от сотрудников')" class="menu-btn">📥 ЗАЯВЛЕНИЯ В JSA</button>
+                <button onclick="switchTab('Заявления от сотрудников')" class="menu-btn">📩 ЗАЯВЛЕНИЯ В JSA</button>
                 <button onclick="switchTab('Постановления JSA')" class="menu-btn">📜 ПОСТАНОВЛЕНИЯ</button>
                 <button onclick="switchTab('Все сотрудники базы')" class="menu-btn">👥 ВСЕ СОТРУДНИКИ (БАЗА)</button>
             `;
@@ -224,35 +234,50 @@ function renderUI() {
     } 
     else if (currentMode === "DETECTIVE") {
         sidebar.innerHTML += `
-            <button onclick="switchTab('Все отчёты')" class="menu-btn">📊 ВСЕ КЕЙС-ФАЙЛЫ</button>
-            <button onclick="switchTab('Кейс-файлы')" class="menu-btn">📂 НОВЫЙ КЕЙС-ФАЙЛ</button>
-            <button onclick="switchTab('Сотрудники ГЕД')" class="menu-btn">🕵️‍♂️ СОТРУДНИКИ DB/GED</button>
-            <button onclick="switchTab('Активные банды')" class="menu-btn">🎴 АКТИВНЫЕ БАНДЫ</button>
+            <button onclick="switchTab('Все отчёты')" class="menu-btn">📂 ВСЕ КЕЙС-ФАЙЛЫ</button>
+            <button onclick="switchTab('Кейс-файлы')" class="menu-btn">📝 НОВЫЙ КЕЙС-ФАЙЛ</button>
+            <button onclick="switchTab('Сотрудники GED')" class="menu-btn">🪪 СОТРУДНИКИ DB/GED</button>
+            <button onclick="switchTab('Активные банды')" class="menu-btn">👺 АКТИВНЫЕ БАНДЫ</button>
         `;
     } 
     else {
         // Обычный PATROL
         sidebar.innerHTML += `
             <button onclick="switchTab('Новости JSA')" class="menu-btn" style="border-left: 2px solid #eab308; margin-bottom: 15px;">📰 НОВОСТИ JSA</button>
-            <button onclick="switchTab('Написать в JSA')" class="menu-btn">✉️ ПОДАТЬ ЗАЯВЛЕНИЕ В JSA</button>
+            <button onclick="switchTab('Написать в JSA')" class="menu-btn">📝 ПОДАТЬ ЗАЯВЛЕНИЕ В JSA</button>
             <hr style="border-color:var(--border); margin: 10px 0;">
-            <button onclick="switchTab('Мои отчёты')" class="menu-btn">📄 МОИ РАПОРТЫ</button>
-            <button onclick="switchTab('Новый отчёт')" class="menu-btn">📝 ПОДАТЬ РАПОРТ</button>
-            <button onclick="switchTab('Все патрульные')" class="menu-btn">🚔 ВСЕ ПАТРУЛЬНЫЕ</button>
+            <button onclick="switchTab('Мои отчёты')" class="menu-btn">📂 МОИ РАПОРТЫ</button>
+            <button onclick="switchTab('Новый отчёт')" class="menu-btn">✍️ ПОДАТЬ РАПОРТ</button>
+            <button onclick="switchTab('Все патрульные')" class="menu-btn">🚓 ВСЕ ПАТРУЛЬНЫЕ</button>
             <button onclick="switchTab('Законодательство')" class="menu-btn">⚖️ ЗАКОНОДАТЕЛЬСТВО</button>
         `;
     }
 
+    // Если зашел Администратор, добавляем ему кнопку панели управления
     if (currentUser.rank === "ADMIN") {
         sidebar.innerHTML += `
             <button onclick="switchTab('Панель Управления')" class="menu-btn" style="margin-top:20px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; color: #f87171;">⚙️ АДМИН-ПАНЕЛЬ</button>
         `;
     }
 
-    if (!document.querySelector('.tab-title')) {
-        switchTab(currentUser.rank === "USER" ? 'Ожидание одобрения' : 'Мои отчёты');
+    // Дефолтное переключение вкладок для детектора заголовков
+    if (!document.querySelector('.nav-title')) {
+        if (typeof switchTab === 'function') {
+            switchTab(currentUser.rank === 'USER' ? 'Ожидание одобрения' : 'Мои отчёты');
+        }
+    }
+
+    // Вызываем финальный рендер навигации
+    if (typeof renderNav === 'function') {
+        renderNav();
     }
 }
+
+// Функция переключения режимов (вынесена отдельно, чтобы не мешать)
+window.changeMode = function(newMode) {
+    currentMode = newMode;
+    renderUI();
+};
 
    // 1. Явно объявляем вкладки для терминала
     const terminalTabs = ['Главная', 'База Данных', 'JSA Liaison', 'Панель Управления'];
