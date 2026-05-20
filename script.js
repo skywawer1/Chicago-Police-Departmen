@@ -1242,4 +1242,4 @@ window.submitJSADocument = function(docType) {
     }).catch(err => {
         console.error("Ошибка сохранения: ", err);
     });
-};
+
