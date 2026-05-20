@@ -677,21 +677,23 @@ function viewReport(id) {
     const divStr = r.division || r.rank || "—";
 
     // Вставляем все данные внутрь modal-body
-    document.getElementById('modal-body').innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
-            <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${typeStr}</h1>
-            <div style="display:flex; align-items:center;">
-                <span style="color:var(--text-gray); font-size:14px;">${r.date || ""}</span>
-                ${editBtns}
-                ${adminBtn}
-            </div>
+// // Вставляем все данные внутрь modal-body
+document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
+        <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${typeStr}</h1>
+        <div style="display:flex; align-items:center;">
+            <span style="color:var(--text-gray); font-size:14px;">${r.date || ""}</span>
+            ${editBtns}
+            ${adminBtn}
         </div>
+    </div>
+    <div>
         <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${authorStr} ${unitStr} | <strong>ОТДЕЛ/ДОЛЖНОСТЬ:</strong> ${divStr}</p>
         <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
         ${notesHtml}
         <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
         <div class="report-photos-grid">${photoHtml}</div>
-    `;
+    </div>`;
 }
 
 function viewReport(id) {
