@@ -452,23 +452,108 @@ function switchTab(tab) {
     }
 }
 
-function renderReportTable(container, list) {
-    if (list.length === 0) {
-        container.innerHTML += `<p class="empty-text">Отчетов в базе данных не обнаружено.</p>`;
+// 1. ФУНКЦИЯ ОТРИСОВКИ ТАБЛИЦЫ
+window.renderReportTable = function(container, list) {
+    if (!list || list.length === 0) {
+        container.innerHTML += `<p class="empty-text">Отчетов или документов в базе данных не обнаружено.</p>`;
         return;
     }
-    let table = `<table class="db-table">
-        <thead><tr><th>ТИП ДОКУМЕНТА</th><th>ДАТА ДОБАВЛЕНИЯ</th><th>АВТОР</th><th>МАРКИРОВКА</th><th>ОТДЕЛ</th></tr></thead>
+    let table = `<table class="db-table" style="width:100%; text-align:left; border-collapse: collapse; margin-top:15px;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--border);">
+                <th style="padding:10px;">ТИП ДОКУМЕНТА</th>
+                <th style="padding:10px;">ДАТА ДОБАВЛЕНИЯ</th>
+                <th style="padding:10px;">АВТОР</th>
+                <th style="padding:10px;">ОТДЕЛ / ДОЛЖНОСТЬ</th>
+            </tr>
+        </thead>
         <tbody>`;
+        
     list.forEach(r => {
-        table += `<tr onclick="viewReport('${r.id}')">
-                <td style="color:var(--accent-blue); font-weight:bold;">${r.type.toUpperCase()}</td>
-                <td>${r.date}</td><td>${r.author}</td><td>${r.unit}</td><td>${r.division}</td>
+        const typeStr = (r.title || r.type || r.globalType || "ДОКУМЕНТ").toUpperCase();
+        const dateStr = r.date || "—";
+        const authorStr = r.author || r.name || "Неизвестно";
+        const deptStr = r.division || r.rank || "—";
+        
+        table += `<tr onclick="window.viewReport('${r.id}')" style="cursor: pointer; border-bottom: 1px solid var(--border);">
+                <td style="padding:10px; color:var(--accent-blue); font-weight:bold;">${typeStr}</td>
+                <td style="padding:10px;">${dateStr}</td>
+                <td style="padding:10px;">${authorStr}</td>
+                <td style="padding:10px;">${deptStr}</td>
             </tr>`; 
     });
     table += `</tbody></table>`;
     container.innerHTML += table;
-}
+};
+
+// 2. ФУНКЦИЯ ОТКРЫТИЯ ОКНА (ГЛОБАЛЬНАЯ)
+window.viewReport = function(id) {
+    console.log("Попытка открыть документ с ID:", id); // Это появится в консоли (F12)
+    
+    if (!reports || reports.length === 0) {
+        return alert("База отчетов еще не загрузилась. Подождите пару секунд.");
+    }
+
+    const r = reports.find(rep => rep.id === id);
+    if (!r) {
+        return alert("Ошибка: Документ с таким ID не найден в памяти!");
+    }
+    
+    const m = document.getElementById('modal-view');
+    if (!m) {
+        return alert("Критическая ошибка: HTML-элемент 'modal-view' не найден на странице!");
+    }
+    
+    // Подгружаем фото
+    let photoHtml = r.photos && r.photos.length > 0 
+        ? r.photos.map(p => `<img src="${p}" class="report-photo" style="max-width:200px; margin-right:10px; cursor:pointer; border-radius:4px;" onclick="window.open(this.src)">`).join('') 
+        : '<p style="color:var(--text-gray)">Фото-доказательства отсутствуют.</p>';
+    
+    // Кнопки управления
+    let adminBtn = currentUser.rank === "ADMIN" ? `<button onclick="deleteReport('${r.id}')" class="btn-delete-action" style="padding: 5px 10px; font-size: 11px; margin-left:10px; background:#ef4444; color:#fff; border:none; border-radius:3px; cursor:pointer;">УДАЛИТЬ</button>` : '';
+    let canEdit = currentUser.email === r.email || currentUser.rank === "ADMIN" || currentUser.division === "GED" || currentUser.rank === "DETECTIVE" || currentUser.rank === "JSA";
+    
+    let editBtns = canEdit ? `
+        <button onclick="editReportText('${r.id}')" class="btn-secondary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">РЕДАКТИРОВАТЬ</button>
+        <button onclick="addReportNote('${r.id}')" class="btn-primary" style="padding: 5px 10px; font-size: 11px; margin-left:10px;">+ ЗАМЕТКА</button>
+    ` : '';
+
+    // Подгружаем заметки
+    let notesHtml = '';
+    if (r.notes && r.notes.length > 0) {
+        notesHtml = `<h3 style="margin-top:20px; margin-bottom:10px; color:#f59e0b;">СЛУЖЕБНЫЕ ЗАМЕТКИ:</h3>`;
+        r.notes.forEach(note => {
+            notesHtml += `<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 13px;">
+                <strong style="color:#f59e0b;">${note.author} (${note.date}):</strong><br>${note.text}
+            </div>`;
+        });
+    }
+
+    // Собираем шапку
+    const typeStr = (r.title || r.type || "ДОКУМЕНТ").toUpperCase();
+    const authorStr = r.author || r.name || "Неизвестно";
+    const unitStr = r.unit ? `[${r.unit}]` : "";
+    const divStr = r.division || r.rank || "—";
+
+    // Вставляем контент
+    document.getElementById('modal-body').innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">
+            <h1 style="color:var(--accent-blue); margin:0; font-size:20px;">${typeStr}</h1>
+            <div style="display:flex; align-items:center;">
+                <span style="color:var(--text-gray); font-size:14px;">${r.date || ""}</span>
+                ${editBtns}
+                ${adminBtn}
+            </div>
+        </div>
+        <p style="color: #cbd5e1; margin-bottom: 15px; font-size:14px;"><strong>ИСПОЛНИТЕЛЬ:</strong> ${authorStr} ${unitStr} | <strong>ОТДЕЛ/ДОЛЖНОСТЬ:</strong> ${divStr}</p>
+        <div class="report-content-view" style="white-space: pre-wrap; background:#050914; padding:20px; border-radius:4px; border:1px solid var(--border); font-family:monospace; line-height:1.5;">${r.text}</div>
+        ${notesHtml}
+        <h3 style="margin-top:20px; margin-bottom:10px; color:var(--accent-blue);">ПРИКРЕПЛЕННЫЕ МАТЕРИАЛЫ / ФОТОФИКСАЦИЯ:</h3>
+        <div class="report-photos-grid" style="display:flex; gap:10px; flex-wrap:wrap;">${photoHtml}</div>
+    `;
+
+    m.style.display = 'flex'; // Открываем
+};
 
 function renderLaws(lawsArray) {
     const cont = document.getElementById('laws-container');
