@@ -147,14 +147,12 @@ function checkAuth() {
 }
 
 function renderUI() {
-    document.getElementById('disp-name').textContent = currentUser.name;
-    document.getElementById('disp-unit').textContent = currentUser.unit;
-    document.getElementById('disp-rank-div').textContent = `${currentUser.rank} / ${currentUser.division}`;
-    const statusEl = document.getElementById('disp-status');
-    statusEl.textContent = currentUser.status;
-    statusEl.className = 'value status-badge ' + currentUser.status.replace(' ', '-').toLowerCase();
-
-    // Обновляем точку статуса
+    // Пытаемся обновить старые текстовые поля, если ты их еще не удалил в HTML
+    if(document.getElementById('disp-name')) document.getElementById('disp-name').textContent = currentUser.name;
+    if(document.getElementById('disp-unit')) document.getElementById('disp-unit').textContent = currentUser.unit;
+    if(document.getElementById('disp-rank-div')) document.getElementById('disp-rank-div').textContent = `${currentUser.rank} / ${currentUser.division}`;
+    
+    // Обновляем точку статуса (зеленая/красная/желтая)
     const topDot = document.getElementById('top-status-dot');
     if (topDot) {
         if (currentUser.status === "ON DUTY") {
@@ -166,7 +164,7 @@ function renderUI() {
         }
     }
 
-    // Обновляем текст текущего отдела в верхнем меню
+    // Меняем название отдела в шапке
     const currentDivName = document.getElementById('current-division-name');
     if (currentDivName) {
         if (currentMode === "PATROL") currentDivName.textContent = "Patrol Division";
@@ -175,17 +173,57 @@ function renderUI() {
         else if (currentMode === "DISPATCHER") currentDivName.textContent = "Dispatcher";
     }
 
-    // Создаем выпадающее меню отделов (справа), если его еще нет
-    let rightPanel = document.getElementById('division-panel');
-    if (!rightPanel) {
-        rightPanel = document.createElement('div');
-        rightPanel.id = 'division-panel';
-        // Изначально скрыто (display: none), позиция абсолютная (под верхним меню)
-        rightPanel.style.cssText = 'display: none; position: absolute; right: 25px; top: 60px; background: #0f172a; padding: 15px; border: 1px solid #334155; border-radius: 8px; z-index: 1000; width: 220px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);';
-        rightPanel.innerHTML = `<h3 style="color:var(--accent-blue); margin-bottom:15px; font-size: 14px; text-align:center;">ВЫБОР ОТДЕЛА</h3>
-            <div id="div-btns" style="display:flex; flex-direction:column; gap:10px;"></div>`;
-        document.body.appendChild(rightPanel);
+    // Заполняем выпадающее меню кнопками
+    const divBtns = document.getElementById('div-btns');
+    if (divBtns) {
+        divBtns.innerHTML = '';
+        
+        const addDivBtn = (name, modeCode, allowedRanks, allowedDivs) => {
+            const hasAccess = currentUser.rank === "ADMIN" || allowedRanks.includes(currentUser.rank) || allowedDivs.includes(currentUser.division);
+            if (hasAccess) {
+                const btn = document.createElement('button');
+                
+                // Стилизация кнопок под скриншот (активная - синяя, остальные - темные)
+                btn.style.width = '100%';
+                btn.style.padding = '8px';
+                btn.style.background = currentMode === modeCode ? '#3b82f6' : 'transparent';
+                btn.style.color = currentMode === modeCode ? '#ffffff' : '#94a3b8';
+                btn.style.border = currentMode === modeCode ? 'none' : '1px solid #1e293b';
+                btn.style.borderRadius = '4px';
+                btn.style.cursor = 'pointer';
+                btn.style.fontSize = '14px';
+                
+                btn.textContent = name;
+                btn.onclick = () => { 
+                    currentMode = modeCode; 
+                    document.getElementById('division-panel').style.display = 'none'; // Скрываем после клика
+                    renderUI(); 
+                };
+                divBtns.appendChild(btn);
+            }
+        };
+
+        // Права доступа к отделам
+        addDivBtn('Patrol Division', 'PATROL', ['PO', 'SERGEANT', 'DETECTIVE', 'JSA'], ['Patrol Division', 'GED', 'Detective Bureau', 'JSA Liason']);
+        addDivBtn('Detective Bureau', 'DETECTIVE', ['DETECTIVE'], ['GED', 'Detective Bureau']);
+        addDivBtn('JSA Liason', 'JSA', ['JSA'], ['JSA Liason']);
+        addDivBtn('Dispatcher (На доработке)', 'DISPATCHER', ['PO', 'SERGEANT', 'DETECTIVE', 'JSA'], ['Patrol Division', 'JSA Liason']);
     }
+
+    // Скрываем старую кнопку "DETECTIVE BUREAU ⮂" (если она осталась)
+    const oldBureauBtn = document.getElementById('btn-switch-bureau');
+    if (oldBureauBtn) oldBureauBtn.style.display = 'none';
+
+    renderNav();
+}
+
+// Функция для открытия/закрытия выпадающего меню
+function toggleDivisionPanel() {
+    const panel = document.getElementById('division-panel');
+    if (panel) {
+        panel.style.display = (panel.style.display === 'none' || panel.style.display === '') ? 'block' : 'none';
+    }
+}
 
     const divBtns = document.getElementById('div-btns');
     divBtns.innerHTML = '';
@@ -298,6 +336,7 @@ function switchTab(tab) {
         else list = reports.filter(r => r.globalType === 'patrol'); 
         renderReportTable(container, list);
     }
+
     else if (tab === 'Все патрульные') {
         const patrolStaff = Object.values(users).filter(u => u.rank !== "USER" && u.rank !== "ADMIN" && u.division !== "GED"); 
         container.innerHTML += `<div class="staff-grid">`;
