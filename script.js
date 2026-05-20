@@ -248,7 +248,6 @@ function renderUI() {
         nav.firstChild.classList.add('active');
         switchTab(menu[0]);
     }
-}
 
 function switchTab(tab) {
     const container = document.getElementById('tab-container');
