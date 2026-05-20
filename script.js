@@ -364,47 +364,68 @@ function switchTab(tab) {
             <div id="requests-list" style="margin-top: 20px;"></div>`;
         
         const reqList = document.getElementById('requests-list');
-        // JSA и Админы видят все жалобы, остальные — только свои
-        const visibleReqs = (currentMode === 'JSA' || currentUser.rank === 'ADMIN') ? jsaRequests : jsaRequests.filter(r => r.email === currentUser.email);
         
-        if (visibleReqs.length === 0) reqList.innerHTML = `<p class="empty-text">Заявлений не найдено.</p>`;
-        
-        visibleReqs.forEach(r => {
-            reqList.innerHTML += `<div class="stat-card" style="margin-bottom:10px;">
-                <p style="font-size:12px; color:var(--text-gray);">${r.date} | От: ${r.author}</p>
-                <h4 style="margin: 5px 0;">${r.title}</h4>
-                <p style="font-size:14px; white-space:pre-wrap;">${r.text}</p>
-            </div>`;
-        });
+        // ПРОВЕРКА: Только JSA и ADMIN могут видеть список жалоб
+        if (currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN') {
+            if (jsaRequests.length === 0) reqList.innerHTML = `<p class="empty-text">Заявлений не найдено.</p>`;
+            jsaRequests.forEach(r => {
+                reqList.innerHTML += `<div class="stat-card" style="margin-bottom:10px;">
+                    <p style="font-size:12px; color:var(--text-gray);">${r.date} | От: ${r.author}</p>
+                    <h4 style="margin: 5px 0;">${r.title}</h4>
+                    <p style="font-size:14px; white-space:pre-wrap;">${r.text}</p>
+                </div>`;
+            });
+        } else {
+            // Обычные сотрудники видят только этот текст, список им недоступен
+            reqList.innerHTML = `<p class="empty-text" style="color: #64748b;">Ваши заявления конфиденциальны и видны только сотрудникам отдела JSA.</p>`;
+        }
     }
     else if (tab === 'Новости JSA') {
         container.innerHTML += `<div id="news-list" style="display:flex; flex-direction:column; gap:15px;"></div>`;
         const newsList = document.getElementById('news-list');
         if (jsaNews.length === 0) newsList.innerHTML = `<p class="empty-text">Новостей от JSA пока нет.</p>`;
+        
         jsaNews.forEach(n => {
-            newsList.innerHTML += `<div class="stat-card" style="border-left: 4px solid var(--warning);">
+            // Кнопка удаления появляется ТОЛЬКО у JSA или ADMIN
+            let deleteBtn = (currentUser.rank === 'JSA' || currentUser.rank === 'ADMIN') 
+                ? `<button onclick="deleteNews('${n.id}')" style="position:absolute; top:15px; right:15px; background:none; border:1px solid #ef4444; border-radius:4px; padding:4px 8px; color:#ef4444; cursor:pointer; font-size:10px; font-weight:bold;">УДАЛИТЬ</button>` 
+                : '';
+                
+            newsList.innerHTML += `<div class="stat-card" style="border-left: 4px solid var(--warning); position:relative; padding-right: 80px;">
+                ${deleteBtn}
                 <p style="font-size:12px; color:var(--text-gray);">${n.date} | Автор: ${n.author}</p>
                 <h3 style="margin: 5px 0; color:var(--accent-blue);">${n.title}</h3>
                 <p style="font-size:14px; white-space:pre-wrap; color: #cbd5e1;">${n.text}</p>
             </div>`;
         });
     }
-    else if (tab === 'Управление новостями') {
-        container.innerHTML += `
-            <div class="form-box">
-                <h3 style="color:var(--warning); margin-bottom: 10px;">ОПУБЛИКОВАТЬ НОВОСТЬ JSA</h3>
-                <input type="text" id="news-title" class="input-field" placeholder="Заголовок новости">
-                <textarea id="news-text" class="report-area" placeholder="Текст новости для сотрудников..."></textarea>
-                <button onclick="submitNews()" class="btn-primary">ОПУБЛИКОВАТЬ ДЛЯ ВСЕХ</button>
-            </div>`;
+    else if (tab === 'Все патрульные') {
+        const patrolStaff = Object.values(users).filter(u => u.rank !== "USER" && u.rank !== "ADMIN" && u.division !== "GED");
+        container.innerHTML += `<div class="staff-grid">`;
+        patrolStaff.forEach(d => {
+            // Считаем количество выговоров
+            const repCount = d.reprimands ? d.reprimands.length : 0;
+            container.innerHTML += `
+                <div class="staff-card">
+                    <h3>${d.name}</h3>
+                    <p style="color:var(--danger); font-size:12px; font-weight:bold; margin-top:3px; margin-bottom:5px;">⚠️ Выговоров: ${repCount}</p>
+                    <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${d.rank}</p>
+                    <p style="font-size:12px; color:var(--text-gray);">${d.division} | Маркировка: ${d.unit}</p>
+                    <span class="status-badge ${d.status.replace(' ', '-').toLowerCase()}" style="margin-top:10px; display:inline-block;">${d.status}</span>
+                </div>`;
+        });
+        container.innerHTML += `</div>`;
     }
     else if (tab === 'Список всех сотрудников') {
         container.innerHTML += `<div class="staff-grid"></div>`;
         const grid = container.querySelector('.staff-grid');
         Object.values(users).forEach(u => {
+            // Считаем количество выговоров
+            const repCount = u.reprimands ? u.reprimands.length : 0;
             grid.innerHTML += `
                 <div class="staff-card">
                     <h3>${u.name}</h3>
+                    <p style="color:var(--danger); font-size:12px; font-weight:bold; margin-top:3px; margin-bottom:5px;">⚠️ Выговоров: ${repCount}</p>
                     <p style="color:var(--accent-blue); font-size:13px; font-weight:bold;">${u.rank} | ${u.division}</p>
                     <p style="font-size:12px; color:var(--text-gray);">Маркировка: ${u.unit} | Статус: ${u.status}</p>
                 </div>`;
@@ -923,4 +944,13 @@ function removeReprimand(email, index) {
     db.collection('users').doc(email).update({ reprimands: currentReps }).then(() => {
         switchTab('Система выговоров');
     });
+}
+function deleteNews(id) {
+    if(confirm("Вы уверены, что хотите навсегда удалить эту новость?")) {
+        db.collection('jsa_news').doc(id).delete().then(() => {
+            alert("Новость успешно удалена!");
+            // Обновляем текущую вкладку
+            switchTab('Новости JSA');
+        }).catch(err => alert("Ошибка удаления: " + err.message));
+    }
 }
