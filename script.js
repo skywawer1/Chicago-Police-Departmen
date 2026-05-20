@@ -45,7 +45,7 @@ function bindEvents() {
     document.getElementById('btn-logout').onclick = logout;
     document.getElementById('unit-edit').onclick = () => editField('unit');
     document.getElementById('name-edit').onclick = () => editField('name');
-    document.getElementById('status-toggle').onclick = toggleStatus;
+    document.getElementById('status-toggle').onclick = () => toggleStatus();
     document.getElementById('btn-switch-bureau').onclick = switchMode;
     document.querySelector('.close-modal').onclick = () => document.getElementById('modal-view').style.display = 'none';
 }
