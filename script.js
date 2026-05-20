@@ -40,14 +40,33 @@ window.onload = () => {
 };
 
 function bindEvents() {
-    document.getElementById('btn-login').onclick = login;
-    document.getElementById('btn-register').onclick = register;
-    document.getElementById('btn-logout').onclick = logout;
-    document.getElementById('unit-edit').onclick = () => editField('unit');
-    document.getElementById('name-edit').onclick = () => editField('name');
-    document.getElementById('status-toggle').onclick = () => window.toggleStatus();
-    document.getElementById('btn-switch-bureau').onclick = () => window.switchMode();
-    document.querySelector('.close-modal').onclick = () => document.getElementById('modal-view').style.display = 'none';
+    // Находим все элементы страницы
+    const reportForm = document.getElementById('report-form');
+    const searchInput = document.getElementById('search-input');
+    const typeFilter = document.getElementById('type-filter');
+    const authorFilter = document.getElementById('author-filter');
+    const sortSelect = document.getElementById('sort-select');
+    const statusToggle = document.getElementById('status-toggle');
+    const btnSwitchBureau = document.getElementById('btn-switch-bureau');
+
+    // Вешаем события ТОЛЬКО если элементы реально существуют в HTML прямо сейчас
+    if (reportForm) reportForm.onsubmit = (e) => { if (typeof createReport === 'function') createReport(e); };
+    if (searchInput) searchInput.oninput = () => { if (typeof filterReports === 'function') filterReports(); };
+    if (typeFilter) typeFilter.onchange = () => { if (typeof filterReports === 'function') filterReports(); };
+    if (authorFilter) authorFilter.onchange = () => { if (typeof filterReports === 'function') filterReports(); };
+    if (sortSelect) sortSelect.onchange = () => { if (typeof filterReports === 'function') filterReports(); };
+    
+    if (statusToggle) {
+        statusToggle.onclick = () => {
+            if (typeof window.toggleStatus === 'function') window.toggleStatus();
+        };
+    }
+    
+    if (btnSwitchBureau) {
+        btnSwitchBureau.onclick = () => {
+            if (typeof window.switchMode === 'function') window.switchMode();
+        };
+    }
 }
 
 function setupFirebaseListeners() {
