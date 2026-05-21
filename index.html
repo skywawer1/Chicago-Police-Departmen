@@ -65,6 +65,28 @@
         <div onclick="toggleStatus()" title="Сменить статус" style="cursor: pointer; padding: 5px;">
             <div id="top-status-dot" style="width: 14px; height: 14px; border-radius: 50%; background-color: #22c55e; box-shadow: 0 0 8px #22c55e;"></div>
         </div>
+        <div id="Radio" class="tab-content" style="display: none;">
+    <h2>Система радиосвязи (Рация)</h2>
+    <div class="radio-wrapper">
+        <div class="radio-log-container" id="radio-log">
+            </div>
+
+        <div class="radio-presets">
+            <button class="preset-btn bg-green" onclick="sendRadioMessage('10-8', 'Доступен для вызовов / На смене')">[10-8] На смене</button>
+            <button class="preset-btn bg-gray" onclick="sendRadioMessage('10-7', 'Недоступен / Конец смены')">[10-7] Вне смены</button>
+            <button class="preset-btn bg-blue" onclick="sendRadioMessage('10-4', 'Принято / Утвердительно')">[10-4] Принято</button>
+            <button class="preset-btn bg-yellow" onclick="sendRadioMessage('10-20', 'Сообщаю свое местоположение...')">[10-20] Локация</button>
+            <button class="preset-btn bg-orange" onclick="sendRadioMessage('10-70', 'Запрашиваю тактическую поддержку!')">[10-70] Запрос поддержки</button>
+            <button class="preset-btn bg-red" onclick="sendRadioMessage('10-80', 'Начата погоня! Прошу код 3!')">[10-80] Погоня</button>
+            <button class="preset-btn bg-dark" onclick="sendRadioMessage('10-99', 'Ситуация урегулирована (Код 4)')">[10-99] Ситуация Код 4</button>
+        </div>
+
+        <div class="radio-manual-input">
+            <input type="text" id="manual-radio-text" placeholder="Введите нестандартное сообщение в рацию...">
+            <button onclick="sendManualRadioMessage()">Передать</button>
+        </div>
+    </div>
+</div>
         
         <div style="position: relative;">
             <div onclick="toggleDivisionPanel()" style="display: flex; align-items: center; gap: 8px; cursor: pointer; border-left: 1px solid #334155; padding-left: 15px;">
@@ -92,6 +114,8 @@
                     <div class="info-block clickable" id="status-toggle">
                         <span class="label">STATUS:</span>
                         <span id="disp-status" class="value status-badge">OFF DUTY</span>
+                        <button id="duty-btn" class="duty-btn off-duty" onclick="toggleDutyStatus()">OFF DUTY</button>
+                        <a href="#" onclick="switchTab('Radio')">📻 Radio (Рация)</a>
                     </div>
                     <div class="info-block">
                         <span class="label">RANK / DIV:</span>
