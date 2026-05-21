@@ -242,3 +242,80 @@ body { background: var(--bg-black); color: var(--text-white); height: 100vh; ove
     font-size: 12px;
     color: #888;
 }
+.ts-radio-wrapper {
+    background-color: #1a1a1f;
+    border: 1px solid #2d2d35;
+    padding: 20px;
+    border-radius: 6px;
+    color: #e2e8f0;
+}
+.ts-header h2 { margin: 0; font-size: 18px; color: #fff; }
+.ts-active-channel-text { color: #a0aec0; font-size: 13px; margin-top: 4px; }
+
+.ts-channels-box {
+    background-color: #0f0f12;
+    border: 1px solid #25252b;
+    height: 380px;
+    overflow-y: auto;
+    padding: 12px;
+    margin-top: 15px;
+    border-radius: 4px;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Стили категорий */
+.ts-style-category {
+    font-weight: bold;
+    color: #718096;
+    font-size: 11px;
+    margin-top: 14px;
+    letter-spacing: 0.5px;
+}
+.ts-style-category:first-child { margin-top: 0; }
+
+/* Стили каналов */
+.ts-style-channel {
+    padding: 5px 8px;
+    margin-left: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #dddfeb;
+    border-radius: 3px;
+    transition: background 0.1s;
+}
+.ts-style-channel:hover { background-color: #23232a; }
+.ts-style-channel::before { content: '🔈 '; margin-right: 4px; color: #a0aec0; }
+.ts-style-channel.active-room { background-color: #2d3748; font-weight: bold; color: #fff; }
+
+/* Стили отображения пользователей внутри канала */
+.ts-style-user {
+    padding: 3px 0;
+    margin-left: 28px;
+    font-size: 13px;
+    color: #63b3ed; /* Тот самый синеватый цвет никнеймов из Discord/TS */
+}
+.ts-style-user::before { content: '👤 '; margin-right: 4px; font-size: 11px; }
+
+/* Кнопки управления */
+.ts-action-area { display: flex; gap: 10px; margin-top: 15px; }
+.ts-ptt-button {
+    flex-grow: 1;
+    padding: 12px;
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    color: white;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+}
+.ts-ptt-button.speaking { background-color: #e53e3e; border-color: #fc8181; box-shadow: 0 0 10px rgba(229,62,62,0.5); }
+.ts-leave-button {
+    padding: 12px 20px;
+    background-color: #e53e3e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
