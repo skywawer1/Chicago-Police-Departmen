@@ -207,3 +207,38 @@ body { background: var(--bg-black); color: var(--text-white); height: 100vh; ove
     cursor: pointer;
     font-weight: bold;
 }
+.voice-radio-container {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #1a1a20;
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid #333;
+}
+
+.ptt-button {
+    width: 100%;
+    padding: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    background-color: #444;
+    border: 2px solid #555;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none; /* Чтобы текст не выделялся при зажатии */
+    transition: all 0.2s ease;
+}
+
+.ptt-button.recording {
+    background-color: #dc3545;
+    border-color: #ff4d4d;
+    box-shadow: 0 0 15px rgba(220, 53, 69, 0.6);
+    transform: scale(0.98);
+}
+
+.voice-status {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #888;
+}
