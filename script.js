@@ -1084,3 +1084,151 @@ db.collection('radio_logs')
       // Автоматический скролл вниз при новом сообщении
       radioLogEl.scrollTop = radioLogEl.scrollHeight;
 });
+// ==========================================
+// ГОЛОСОВАЯ РАЦИЯ (WALKIE-TALKIE MODE)
+// ==========================================
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+let micInitialized = false;
+
+// 1. Инициализация микрофона (запрашиваем разрешение при первом клике)
+async function initVoiceRadio() {
+    if (micInitialized) return true;
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) audioChunks.push(event.data);
+        };
+        
+        mediaRecorder.onstop = processAndSendAudio;
+        micInitialized = true;
+        document.getElementById('voice-status').innerText = "Микрофон подключен. Готов к работе.";
+        return true;
+    } catch (err) {
+        console.error("Ошибка доступа к микрофону:", err);
+        document.getElementById('voice-status').innerText = "❌ Нет доступа к микрофону!";
+        return false;
+    }
+}
+
+// 2. Начало записи
+async function startPTT() {
+    if (!currentUser) return alert("Авторизуйтесь для использования рации!");
+    const ready = await initVoiceRadio();
+    if (!ready || isRecording) return;
+
+    audioChunks = [];
+    mediaRecorder.start();
+    isRecording = true;
+    
+    const pttBtn = document.getElementById('ptt-btn');
+    pttBtn.classList.add('recording');
+    pttBtn.innerText = "🔴 ИДЕТ ПЕРЕДАЧА... Говорите!";
+    document.getElementById('voice-status').innerText = "Запись эфира...";
+}
+
+// 3. Конец записи
+function stopPTT() {
+    if (!isRecording) return;
+    mediaRecorder.stop();
+    isRecording = false;
+    
+    const pttBtn = document.getElementById('ptt-btn');
+    pttBtn.classList.remove('recording');
+    pttBtn.innerText = "🎙️ HOLD TO TALK (Зажми Пробел или Клик)";
+    document.getElementById('voice-status').innerText = "Отправка в эфир...";
+}
+
+// 4. Упаковка и отправка в Firebase
+function processAndSendAudio() {
+    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+    
+    // Если запись меньше полусекунды (случайный клик), игнорируем
+    if (audioBlob.size < 2000) {
+        document.getElementById('voice-status').innerText = "Слишком короткое сообщение.";
+        return;
+    }
+
+    // Переводим аудио в формат Base64 для сохранения в базу
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = function() {
+        const base64Audio = reader.result;
+
+        db.collection('voice_transmissions').add({
+            sender: currentUser.name || "Неизвестный",
+            rank: currentUser.rank || "Officer",
+            audioData: base64Audio,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(() => {
+            document.getElementById('voice-status').innerText = "Сообщение доставлено.";
+        }).catch(err => console.error("Ошибка отправки аудио:", err));
+    };
+}
+
+// 5. Прослушивание входящих передач (у всех патрульных)
+// Используем переменную, чтобы не проигрывать старые записи при первой загрузке страницы
+let initialVoiceLoad = true; 
+
+db.collection('voice_transmissions')
+  .orderBy('timestamp', 'desc')
+  .limit(1) // Слушаем только самую последнюю запись
+  .onSnapshot(snapshot => {
+      if (initialVoiceLoad) {
+          initialVoiceLoad = false;
+          return; // Пропускаем старое при загрузке
+      }
+
+      snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+              const data = change.doc.data();
+              
+              // Не проигрываем свое же аудио (ты и так знаешь, что сказал)
+              if (data.sender !== currentUser?.name) {
+                  const audio = new Audio(data.audioData);
+                  audio.play().catch(e => console.log("Браузер заблокировал автовоспроизведение:", e));
+                  
+                  // Визуально показываем в логах, что кто-то говорит
+                  const statusEl = document.getElementById('voice-status');
+                  if (statusEl) statusEl.innerText = `🔊 В эфире: ${data.rank} ${data.sender}`;
+              }
+          }
+      });
+});
+
+// ==========================================
+// БИНДЫ КНОПОК (Мышка и Клавиатура)
+// ==========================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    const pttBtn = document.getElementById('ptt-btn');
+    if (!pttBtn) return;
+
+    // Бинд на КЛИК МЫШЬЮ по кнопке
+    pttBtn.addEventListener('mousedown', startPTT);
+    pttBtn.addEventListener('mouseup', stopPTT);
+    pttBtn.addEventListener('mouseleave', stopPTT); // Если увел курсор с кнопки
+
+    // Бинд на КЛАВИАТУРУ (например, ПРОБЕЛ) когда сайт открыт
+    document.addEventListener('keydown', (e) => {
+        // Проверяем, что не печатаем в инпут в этот момент
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        // 32 = Пробел. Можешь поменять код клавиши, если нужна другая
+        if (e.keyCode === 32 && !e.repeat) { 
+            e.preventDefault();
+            startPTT();
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.keyCode === 32) {
+            e.preventDefault();
+            stopPTT();
+        }
+    });
+});
