@@ -1246,3 +1246,210 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+// ==========================================================
+// СИСТЕМА ГОЛОСОВОЙ РАЦИИ И КАНАЛОВ (TEAMSPEAK STYLE)
+// ==========================================================
+
+const radioChannelsStructure = [
+    { id: 'cat_ooc', type: 'category', name: '▼ ТРАНЗИТНЫЕ КАНАЛЫ (OOC)' },
+    { id: 'ch_lobby', type: 'channel', name: 'ОЖИДАНИЕ / ГОСТИНАЯ' },
+    { id: 'cat_lspd', type: 'category', name: '▼ КАНАЛЫ LSPD' },
+    { id: 'ch_main', type: 'channel', name: '[LSPD] ОДНА ТРАНСЛЯЦИЯ' },
+    { id: 'ch_patrol1', type: 'channel', name: '[LSPD] ПАТРУЛЬ 1' },
+    { id: 'ch_patrol2', type: 'channel', name: '[LSPD] ПАТРУЛЬ 2' },
+    { id: 'ch_tac1', type: 'channel', name: '[LSPD] ТАКТИЧЕСКИЙ 1' }
+];
+
+let activeRadioChannelId = null;
+let voiceMediaRecorder;
+let voiceAudioChunks = [];
+let isVoiceRecordingActive = false;
+let isMicAuthorized = false;
+let isFirstRadioLoad = true;
+
+// Подключение к каналу
+function connectToRadioChannel(id, name) {
+    if (!currentUser) return alert("Вы должны войти в аккаунт!");
+    activeRadioChannelId = id;
+    document.getElementById('current-channel-title').innerText = `Канал: ${name}`;
+    
+    db.collection('users').doc(currentUser.email).update({
+        currentRadioChannel: id
+    });
+}
+
+// Отключение от рации
+function disconnectFromRadio() {
+    if (!currentUser) return;
+    activeRadioChannelId = null;
+    document.getElementById('current-channel-title').innerText = `Канал: Не подключен`;
+    
+    db.collection('users').doc(currentUser.email).update({
+        currentRadioChannel: firebase.firestore.FieldValue.delete()
+    });
+}
+
+// Отслеживание людей в каналах онлайн
+db.collection('users').onSnapshot(snapshot => {
+    const channelOccupants = {};
+    
+    snapshot.forEach(doc => {
+        const userData = doc.data();
+        if (userData.currentRadioChannel) {
+            if (!channelOccupants[userData.currentRadioChannel]) {
+                channelOccupants[userData.currentRadioChannel] = [];
+            }
+            // Формируем строку: Ранг + Имя (или Nickname)
+            const displayName = `${userData.rank || 'Officer'} ${userData.name || 'Сотрудник'}`;
+            channelOccupants[userData.currentRadioChannel].push(displayName);
+        }
+    });
+
+    renderChannelsUI(channelOccupants);
+});
+
+// Генерация дерева каналов в интерфейсе
+function renderChannelsUI(occupants) {
+    const listContainer = document.getElementById('ts-channels-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+    
+    radioChannelsStructure.forEach(node => {
+        if (node.type === 'category') {
+            const catDiv = document.createElement('div');
+            catDiv.className = 'ts-style-category';
+            catDiv.innerText = node.name;
+            listContainer.appendChild(catDiv);
+        } else {
+            const chanDiv = document.createElement('div');
+            chanDiv.className = 'ts-style-channel';
+            if (activeRadioChannelId === node.id) chanDiv.classList.add('active-room');
+            chanDiv.innerText = node.name;
+            chanDiv.onclick = () => connectToRadioChannel(node.id, node.name);
+            listContainer.appendChild(chanDiv);
+
+            // Отрисовка людей, если они находятся в этом канале
+            if (occupants[node.id]) {
+                occupants[node.id].forEach(userStr => {
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'ts-style-user';
+                    userDiv.innerText = userStr;
+                    listContainer.appendChild(userDiv);
+                });
+            }
+        }
+    });
+}
+
+// Инициализация микрофона браузера
+async function requestMicAccess() {
+    if (isMicAuthorized) return true;
+    try {
+        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        voiceMediaRecorder = new MediaRecorder(audioStream);
+        
+        voiceMediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) voiceAudioChunks.push(e.data);
+        };
+        
+        voiceMediaRecorder.onstop = uploadAndBroadcastAudio;
+        isMicAuthorized = true;
+        return true;
+    } catch (err) {
+        console.error("Доступ к микрофону отклонен:", err);
+        alert("Рация требует доступ к микрофону!");
+        return false;
+    }
+}
+
+// Зажатие тангенты (Начало разговора)
+async function startVoiceBroadcast() {
+    if (!activeRadioChannelId) return; // Говорим только если подключены к каналу
+    if (isVoiceRecordingActive) return;
+
+    const hasAccess = await requestMicAccess();
+    if (!hasAccess) return;
+
+    voiceAudioChunks = [];
+    voiceMediaRecorder.start();
+    isVoiceRecordingActive = true;
+    
+    const pttBtn = document.getElementById('ts-ptt-trigger');
+    if (pttBtn) {
+        pttBtn.classList.add('speaking');
+        pttBtn.innerText = "🔴 МИКРОФОН ВКЛЮЧЕН (ГОВОРИТЕ)";
+    }
+}
+
+// Отпускание тангенты (Конец разговора)
+function stopVoiceBroadcast() {
+    if (!isVoiceRecordingActive) return;
+    voiceMediaRecorder.stop();
+    isVoiceRecordingActive = false;
+    
+    const pttBtn = document.getElementById('ts-ptt-trigger');
+    if (pttBtn) {
+        pttBtn.classList.remove('speaking');
+        pttBtn.innerText = "🎙️ ЗАЖАТЬ ДЛЯ ПЕРЕДАЧИ (ПРОБЕЛ)";
+    }
+}
+
+// Конвертация звука и отправка в нужную комнату базы данных
+function uploadAndBroadcastAudio() {
+    const recordedBlob = new Blob(voiceAudioChunks, { type: 'audio/webm' });
+    if (recordedBlob.size < 1500) return; // Слишком короткое нажатие игнорируем
+
+    const audioReader = new FileReader();
+    audioReader.readAsDataURL(recordedBlob);
+    audioReader.onloadend = function() {
+        const base64AudioData = audioReader.result;
+
+        db.collection('voice_streams').add({
+            channelId: activeRadioChannelId,
+            senderEmail: currentUser.email,
+            audioPayload: base64AudioData,
+            createdTime: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    };
+}
+
+// Прием аудиосообщений в реальном времени внутри твоего канала
+db.collection('voice_streams')
+  .orderBy('createdTime', 'desc')
+  .limit(1)
+  .onSnapshot(snapshot => {
+      if (isFirstRadioLoad) {
+          isFirstRadioLoad = false;
+          return; // Пропускаем старые записи при загрузке страницы
+      }
+
+      snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+              const audioPacket = change.doc.data();
+              // Проигрываем, только если мы в том же канале и это говорил не я сам
+              if (audioPacket.channelId === activeRadioChannelId && audioPacket.senderEmail !== currentUser?.email) {
+                  const audioPlayer = new Audio(audioPacket.audioPayload);
+                  audioPlayer.play().catch(err => console.log("Браузер заблокировал автовоспроизведение звука:", err));
+              }
+          }
+      });
+  });
+
+// Настройка горячей клавиши (Пробел)
+document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.keyCode === 32 && !e.repeat) { // 32 = Пробел
+            e.preventDefault();
+            startVoiceBroadcast();
+        }
+    });
+
+    document.addEventListener('keyup', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.keyCode === 32) {
+            e.preventDefault();
+            stopVoiceBroadcast();
+        }
+    });
+});
