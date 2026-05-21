@@ -555,7 +555,7 @@ navContainer.appendChild(radioNavBtn); // используй свою перем
         let isAuthorized = currentUser.rank === "ADMIN" || currentUser.rank === "SERGEANT" || currentUser.rank === "JSA";
         if (!isAuthorized) {
             container.innerHTML += `<p class="empty-text">У вас нет доступа к выдаче выговоров. Только ADMIN, JSA и SERGEANT.</p>`;
-        } else {
+         else {
             container.innerHTML += `
                 <div class="form-box" style="margin-bottom: 20px;">
                     <h3 style="color:var(--danger); margin-bottom:10px;">ВЫДАТЬ ВЫГОВОР СОТРУДНИКУ</h3>
