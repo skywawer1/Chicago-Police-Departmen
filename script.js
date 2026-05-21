@@ -546,6 +546,11 @@ function switchTab(tab) {
                 </div>`;
         });
     }
+        const radioNavBtn = document.createElement('button');
+radioNavBtn.className = 'nav-btn'; // используй свой класс для кнопок меню
+radioNavBtn.textContent = '📻 Рация';
+radioNavBtn.onclick = () => switchTab('Рация');
+navContainer.appendChild(radioNavBtn); // используй свою переменную контейнера меню
     else if (tab === 'Система выговоров') {
         let isAuthorized = currentUser.rank === "ADMIN" || currentUser.rank === "SERGEANT" || currentUser.rank === "JSA";
         if (!isAuthorized) {
@@ -875,10 +880,19 @@ function editField(field) {
 }
 
 function toggleStatus() {
-    const statuses = ["ON DUTY", "OFF DUTY", "ON SCENE"];
-    let nextIdx = (statuses.indexOf(currentUser.status) + 1) % statuses.length;
-    db.collection('users').doc(currentUser.email).update({status: statuses[nextIdx]}).then(() => {
-        renderNav(); 
+    if (!currentUser) return alert("Сначала пройдите авторизацию!");
+
+    // Переключаем строго между двумя состояниями
+    const newStatus = currentUser.status === "ON DUTY" ? "OFF DUTY" : "ON DUTY";
+
+    db.collection('users').doc(currentUser.email).update({
+        status: newStatus
+    }).then(() => {
+        console.log("Статус успешно изменен на: " + newStatus);
+        // Перерисовываем меню, чтобы кнопка визуально обновилась
+        if (typeof renderNav === "function") renderNav(); 
+    }).catch(error => {
+        console.error("Ошибка при обновлении статуса:", error);
     });
 }
 
