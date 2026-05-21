@@ -111,3 +111,99 @@ body { background: var(--bg-black); color: var(--text-white); height: 100vh; ove
 .delete-item-row { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.4); padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; margin-bottom: 5px; }
 .btn-delete-action { background: #451a03; color: #f97316; border: 1px solid #7c2d12; padding: 4px 10px; font-size: 11px; font-weight: bold; cursor: pointer; border-radius: 3px; transition: 0.2s; }
 .btn-delete-action:hover { background: var(--danger); color: white; border-color: var(--danger); }
+/* --- КНОПКА СТАТУСА --- */
+.duty-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    transition: 0.3s;
+}
+.duty-btn.off-duty { background-color: #dc3545; } /* Красный */
+.duty-btn.on-duty { background-color: #28a745; } /* Зеленый */
+
+/* --- ИНТЕРФЕЙС РАЦИИ --- */
+.radio-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background-color: #1e1e24; /* Темный фон */
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+/* Окно сообщений */
+.radio-log-container {
+    height: 350px;
+    background-color: #121215;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 10px;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace; /* Моноширинный шрифт для рации */
+    font-size: 14px;
+}
+
+.radio-msg-line {
+    padding: 4px 0;
+    border-bottom: 1px solid #222;
+}
+.r-time { color: #888; }
+.r-sender { color: #4da6ff; font-weight: bold; margin-left: 5px; }
+.r-code { color: #ffcc00; font-weight: bold; margin-left: 5px; }
+.r-text { color: #ddd; margin-left: 5px; }
+
+/* Сетка кнопок (заготовок) */
+.radio-presets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.preset-btn {
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    transition: transform 0.1s, opacity 0.2s;
+}
+.preset-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+.preset-btn:active { transform: translateY(1px); }
+
+/* Цвета кнопок как на скриншоте */
+.bg-green { background-color: #28a745; }
+.bg-gray { background-color: #6c757d; }
+.bg-blue { background-color: #007bff; }
+.bg-yellow { background-color: #ffc107; color: #111; text-shadow: none; }
+.bg-orange { background-color: #fd7e14; }
+.bg-red { background-color: #dc3545; }
+.bg-dark { background-color: #343a40; }
+
+/* Ручной ввод */
+.radio-manual-input {
+    display: flex;
+    gap: 10px;
+}
+.radio-manual-input input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 4px;
+    background-color: #2b2b36;
+    color: white;
+}
+.radio-manual-input button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
