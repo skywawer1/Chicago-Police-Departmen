@@ -91,6 +91,24 @@
         </div>
     </div>
 </div>
+        <div id="Рация" class="tab-content" style="display: none;">
+    <div class="ts-radio-wrapper">
+        <div class="ts-header">
+            <h2>Радиочастоты Департамента</h2>
+            <div id="current-channel-title" class="ts-active-channel-text">Канал: Не подключен</div>
+        </div>
+        
+        <div class="ts-channels-box" id="ts-channels-list">
+            </div>
+
+        <div class="ts-action-area">
+            <button id="ts-ptt-trigger" class="ts-ptt-button" onmousedown="startVoiceBroadcast()" onmouseup="stopVoiceBroadcast()" onmouseleave="stopVoiceBroadcast()">
+                🎙️ ЗАЖАТЬ ДЛЯ ПЕРЕДАЧИ (ПРОБЕЛ)
+            </button>
+            <button class="ts-leave-button" onclick="disconnectFromRadio()">Отключиться</button>
+        </div>
+    </div>
+</div>
         
         <div style="position: relative;">
             <div onclick="toggleDivisionPanel()" style="display: flex; align-items: center; gap: 8px; cursor: pointer; border-left: 1px solid #334155; padding-left: 15px;">
