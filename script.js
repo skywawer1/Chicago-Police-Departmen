@@ -990,3 +990,97 @@ function deleteNews(id) {
         }).catch(err => alert("Ошибка удаления: " + err.message));
     }
 }
+// ==========================================
+// НОВЫЙ ФУНКЦИОНАЛ: СТАТУС И РАЦИЯ
+// ==========================================
+
+// 1. Починка кнопки Duty Status
+let isDutyActive = false;
+
+function toggleDutyStatus() {
+    if (!currentUser) return alert("Ошибка: Вы не авторизованы!");
+
+    isDutyActive = !isDutyActive;
+    const dutyBtn = document.getElementById('duty-btn');
+    
+    if (dutyBtn) {
+        if (isDutyActive) {
+            dutyBtn.textContent = "ON DUTY";
+            dutyBtn.className = "duty-btn on-duty";
+            // Автоматически кидаем в рацию, что заступил
+            sendRadioMessage('10-8', 'Заступил на смену'); 
+        } else {
+            dutyBtn.textContent = "OFF DUTY";
+            dutyBtn.className = "duty-btn off-duty";
+            // Автоматически кидаем в рацию, что ушел
+            sendRadioMessage('10-7', 'Покинул смену'); 
+        }
+    }
+
+    // Сохраняем статус в базу пользователя
+    db.collection('users').doc(currentUser.email).update({
+        dutyStatus: isDutyActive ? 'ON DUTY' : 'OFF DUTY'
+    }).catch(err => console.error("Ошибка смены статуса:", err));
+}
+
+// 2. Функция отправки сообщения в рацию (сохранение в БД)
+function sendRadioMessage(code, textMessage) {
+    if (!currentUser) return alert("Авторизуйтесь для использования рации!");
+
+    const radioData = {
+        sender: currentUser.name || "Неизвестный офицер",
+        rank: currentUser.rank || "Officer",
+        code: code,
+        message: textMessage,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    db.collection('radio_logs').add(radioData)
+        .catch(err => console.error("Ошибка передачи в рацию:", err));
+}
+
+// 3. Отправка ручного текста в рацию
+function sendManualRadioMessage() {
+    const inputEl = document.getElementById('manual-radio-text');
+    const text = inputEl.value.trim();
+    if (!text) return; // пустые не шлем
+
+    sendRadioMessage('INFO', text);
+    inputEl.value = ''; // очищаем поле после отправки
+}
+
+// 4. Прослушивание рации в РЕАЛЬНОМ ВРЕМЕНИ
+db.collection('radio_logs')
+  .orderBy('timestamp', 'desc')
+  .limit(60)
+  .onSnapshot(snapshot => {
+      const radioLogEl = document.getElementById('radio-log');
+      if (!radioLogEl) return;
+
+      radioLogEl.innerHTML = '';
+      const messages = [];
+      
+      // Читаем из Firebase
+      snapshot.forEach(doc => messages.push(doc.data()));
+      
+      // Переворачиваем, чтобы новые были внизу
+      messages.reverse(); 
+
+      messages.forEach(msg => {
+          // Форматируем время
+          const time = msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString() : '...';
+          
+          const msgDiv = document.createElement('div');
+          msgDiv.className = 'radio-msg-line';
+          msgDiv.innerHTML = `
+              <span class="r-time">[${time}]</span> 
+              <span class="r-sender">${msg.rank} ${msg.sender}:</span> 
+              ${msg.code !== 'INFO' ? `<span class="r-code">**[${msg.code}]**</span>` : ''} 
+              <span class="r-text">${msg.message}</span>
+          `;
+          radioLogEl.appendChild(msgDiv);
+      });
+
+      // Автоматический скролл вниз при новом сообщении
+      radioLogEl.scrollTop = radioLogEl.scrollHeight;
+});
